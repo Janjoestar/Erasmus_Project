@@ -1,0 +1,308 @@
+/* --- Variables & Themes --- */
+:root {
+    /* Base Variables */
+    --cell-radius: 4px;
+    --font-main: 'Poppins', sans-serif;
+}
+
+/* 1. Classic Theme (Default) */
+[data-theme="classic"] {
+    --bg-color: #f3f4f6;
+    --text-color: #1f2937;
+    --grid-bg: #d1d5db;
+    --cell-bg: #e5e7eb;
+    --accent-color: #118ab2;
+    --modal-bg: rgba(255, 255, 255, 0.95);
+    /* Block Colors */
+    --c1: #ef476f; --c2: #ffd166; --c3: #06d6a0; --c4: #118ab2; --c5: #073b4c;
+}
+
+/* 2. Dark/Neon Theme */
+[data-theme="dark"] {
+    --bg-color: #0f172a;
+    --text-color: #f8fafc;
+    --grid-bg: #1e293b;
+    --cell-bg: #334155;
+    --accent-color: #818cf8;
+    --modal-bg: rgba(15, 23, 42, 0.95);
+    /* Neon Colors */
+    --c1: #f472b6; --c2: #facc15; --c3: #4ade80; --c4: #60a5fa; --c5: #a78bfa;
+}
+
+/* 3. Pastel Theme */
+[data-theme="pastel"] {
+    --bg-color: #fff1f2;
+    --text-color: #881337;
+    --grid-bg: #ffe4e6;
+    --cell-bg: #fff0f1;
+    --accent-color: #fb7185;
+    --modal-bg: rgba(255, 255, 255, 0.95);
+    /* Soft Colors */
+    --c1: #fda4af; --c2: #fcd34d; --c3: #86efac; --c4: #93c5fd; --c5: #d8b4fe;
+}
+
+/* 4. Retro Theme */
+[data-theme="retro"] {
+    --bg-color: #eaddcf;
+    --text-color: #5c4033;
+    --grid-bg: #dcc1ab;
+    --cell-bg: #e6ccb2;
+    --accent-color: #8a6a4b;
+    --modal-bg: rgba(234, 221, 207, 0.95);
+    /* Earthy Colors */
+    --c1: #e76f51; --c2: #f4a261; --c3: #2a9d8f; --c4: #264653; --c5: #e9c46a;
+}
+
+/* --- Global Reset --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+    touch-action: none;
+}
+
+body {
+    font-family: var(--font-main);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    transition: background-color 0.3s, color 0.3s;
+    overflow: hidden;
+}
+
+.game-container {
+    width: 100%;
+    max-width: 500px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+}
+
+/* --- Header --- */
+header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+h1 {
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: 1px;
+}
+
+.theme-toggle {
+    background: transparent;
+    border: 2px solid var(--text-color);
+    color: var(--text-color);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+}
+
+.theme-toggle:hover {
+    background: var(--text-color);
+    color: var(--bg-color);
+}
+
+.score-board {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.score-box {
+    background: var(--accent-color);
+    color: white;
+    padding: 10px 25px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.score-box.best {
+    background: var(--text-color);
+    color: var(--bg-color);
+}
+
+.score-box .label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.score-box span:not(.label) {
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+/* --- Grid Wrapper (for positioning feedback) --- */
+.grid-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    background-color: var(--grid-bg);
+    padding: 8px;
+    border-radius: 12px;
+    width: 100%;
+    aspect-ratio: 1;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.cell {
+    background-color: var(--cell-bg);
+    border-radius: var(--cell-radius);
+    transition: background-color 0.2s;
+}
+
+/* Filled Cell Styling */
+.cell.filled {
+    box-shadow: inset 0 -3px 0 rgba(0,0,0,0.2);
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+/* --- Floating Text Feedback --- */
+.floating-text {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--text-color);
+    text-shadow: 2px 2px 0px var(--bg-color);
+    pointer-events: none;
+    animation: floatUp 0.8s ease-out forwards;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+@keyframes floatUp {
+    0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+    20% { transform: translate(-50%, -60%) scale(1.2); opacity: 1; }
+    100% { transform: translate(-50%, -100%) scale(1); opacity: 0; }
+}
+
+/* --- Shape Container --- */
+.block-container {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    height: 120px;
+    margin-top: 10px;
+}
+
+.draggable-shape {
+    display: grid;
+    gap: 2px;
+    cursor: grab;
+    transition: transform 0.1s;
+}
+
+.draggable-shape:active {
+    cursor: grabbing;
+    transform: scale(1.1);
+}
+
+.shape-cell {
+    width: 20px;
+    height: 20px;
+    border-radius: 2px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
+}
+
+.dragging {
+    opacity: 0.9;
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.cell.hovered {
+    background-color: rgba(0,0,0,0.1);
+    border: 2px dashed var(--text-color);
+}
+
+/* --- Modal --- */
+.modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    transition: opacity 0.3s;
+}
+
+.modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.modal-content {
+    background: var(--modal-bg);
+    padding: 40px;
+    border-radius: 20px;
+    text-align: center;
+    color: var(--text-color);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+    min-width: 300px;
+}
+
+.modal-content h2 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.modal-content h3 {
+    font-size: 3rem;
+    margin: 10px 0 20px;
+    color: var(--accent-color);
+}
+
+#restart-btn {
+    padding: 15px 40px;
+    font-size: 1.1rem;
+    background: var(--text-color);
+    color: var(--bg-color);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: transform 0.1s;
+}
+
+#restart-btn:active {
+    transform: scale(0.95);
+}
