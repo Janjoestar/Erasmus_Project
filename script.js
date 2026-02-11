@@ -1,57 +1,130 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
+    const mainMenu = document.getElementById('main-menu');
+    const gameScreen = document.getElementById('game-screen');
     const gridEl = document.getElementById('grid');
+    const gridWrapper = document.querySelector('.grid-wrapper');
     const blockContainer = document.getElementById('block-container');
     const scoreEl = document.getElementById('score');
     const highScoreEl = document.getElementById('high-score');
-    const themeBtn = document.getElementById('theme-btn');
-    const feedbackContainer = document.getElementById('feedback-container');
+    const menuHighScoreEl = document.getElementById('menu-high-score');
+    const feedbackLayer = document.getElementById('feedback-layer');
+    const particleLayer = document.getElementById('particle-layer');
     const modal = document.getElementById('game-over-modal');
     const finalScoreEl = document.getElementById('final-score');
+    const goTitle = document.getElementById('go-title');
+    const comboBox = document.getElementById('combo-box');
+    const comboMultiplierEl = document.getElementById('combo-multiplier');
+
+    // --- Buttons ---
+    const startBtn = document.getElementById('start-game-btn');
+    const menuThemeBtn = document.getElementById('menu-theme-btn');
+    const gameThemeBtn = document.getElementById('game-theme-btn');
+    const backToMenuBtn = document.getElementById('back-to-menu');
     const restartBtn = document.getElementById('restart-btn');
+    const exitToMenuBtn = document.getElementById('exit-to-menu');
+    const muteBtns = document.querySelectorAll('.mute-btn');
 
+    // --- Game State ---
     const gridSize = 8;
-    let grid = []; 
+    let grid = [];
     let score = 0;
-    let highScore = localStorage.getItem('bb_highscore') || 0;
+    let highScore = localStorage.getItem('better_blocks_hs') || 0;
+    // Combo System State
+    let comboStreak = 0;
+    let didClearThisTurn = false;
 
-    // --- Theme System ---
-    const themes = ['classic', 'dark', 'pastel', 'retro'];
+    // --- Config ---
+    const themes = ['classic', 'dark', 'forest'];
     let currentThemeIndex = 0;
+    let isMuted = localStorage.getItem('better_blocks_muted') === 'true';
 
-    function applyTheme() {
-        const theme = themes[currentThemeIndex];
-        document.body.setAttribute('data-theme', theme);
-        themeBtn.textContent = `THEME: ${theme.toUpperCase()}`;
-    }
-
-    themeBtn.addEventListener('click', () => {
-        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
-        applyTheme();
-    });
-
-    // --- Game Logic ---
     const shapes = [
-        [[1]], [[1,1]], [[1,1,1]], [[1,1,1,1]], 
-        [[1],[1]], [[1],[1],[1]], 
-        [[1,1],[1,1]], 
-        [[1,1,1],[0,1,0]], 
-        [[1,0],[1,0],[1,1]], 
-        [[0,1],[0,1],[1,1]]
+        [[1]], [[1,1]], [[1,1,1]], [[1,1,1,1]], [[1],[1]], [[1],[1],[1]],
+        [[1,1],[1,1]], [[1,1,1],[0,1,0]], [[1,0],[1,0],[1,1]], [[1,1],[1,0]]
     ];
-
-    // Using CSS variable references for consistency with themes
     const colors = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
 
     function init() {
+        menuHighScoreEl.textContent = highScore;
         highScoreEl.textContent = highScore;
-        applyTheme(); // Set default theme
-        createGrid();
-        spawnShapes();
-        score = 0;
-        updateScore(0);
-        modal.classList.add('hidden');
+        applyTheme();
+        updateMuteUI();
     }
 
+    // --- Audio System (Web Audio API) ---
+    const sfx = {
+        ctx: new (window.AudioContext || window.webkitAudioContext)(),
+        play(type) {
+            if (isMuted || !this.ctx) return;
+            // Resume context if suspended (browser autoplay policy)
+            if(this.ctx.state === 'suspended') this.ctx.resume();
+            
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.connect(gain); gain.connect(this.ctx.destination);
+
+            const now = this.ctx.currentTime;
+            if (type === 'pop') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, now);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+                osc.start(now); osc.stop(now + 0.1);
+            } else if (type === 'clear') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'gameover') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(50, now + 0.8);
+                gain.gain.setValueAtTime(0.3, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.8);
+                osc.start(now); osc.stop(now + 0.8);
+            } else if (type === 'highscore') {
+                 osc.type = 'square'; osc.frequency.setValueAtTime(523.25, now); // C5
+                 osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
+                 osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
+                 gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.5);
+                 osc.start(now); osc.stop(now + 0.5);
+            }
+        }
+    };
+
+    // --- Navigation & UI ---
+    function startGame() {
+        mainMenu.classList.add('hidden');
+        gameScreen.classList.remove('hidden');
+        // Ensure audio context is active on user interaction
+        if(sfx.ctx.state === 'suspended') sfx.ctx.resume();
+        resetGame();
+    }
+
+    function showMenu() {
+        gameScreen.classList.add('hidden');
+        mainMenu.classList.remove('hidden');
+        modal.classList.add('hidden');
+        menuHighScoreEl.textContent = highScore;
+    }
+
+    function resetGame() {
+        createGrid();
+        spawnShapes();
+        score = 0; comboStreak = 0; updateComboUI();
+        updateScore(0);
+        modal.classList.add('hidden');
+        gridEl.classList.remove('combo-active');
+    }
+
+    function toggleMute() {
+        isMuted = !isMuted;
+        localStorage.setItem('better_blocks_muted', isMuted);
+        updateMuteUI();
+    }
+
+    function updateMuteUI() {
+        muteBtns.forEach(btn => btn.textContent = isMuted ? '🔇' : '🔊');
+    }
+
+    // --- Core Game Logic ---
     function createGrid() {
         gridEl.innerHTML = '';
         grid = Array(gridSize).fill().map(() => Array(gridSize).fill(null));
@@ -59,264 +132,263 @@ document.addEventListener('DOMContentLoaded', () => {
             for (let c = 0; c < gridSize; c++) {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
-                cell.dataset.row = r;
-                cell.dataset.col = c;
+                cell.dataset.r = r; cell.dataset.c = c;
                 gridEl.appendChild(cell);
             }
         }
     }
 
+    function updateScore(val) {
+        score = val;
+        scoreEl.textContent = score;
+        if(score > highScore) {
+            if(highScore > 0) sfx.play('highscore'); // Only play if beating previous
+            highScore = score;
+            highScoreEl.textContent = highScore;
+            localStorage.setItem('better_blocks_hs', highScore);
+        }
+    }
+
+    function updateComboUI() {
+        if (comboStreak > 1) {
+            comboBox.classList.remove('hidden');
+            comboMultiplierEl.textContent = comboStreak;
+            gridEl.classList.add('combo-active');
+        } else {
+            comboBox.classList.add('hidden');
+            gridEl.classList.remove('combo-active');
+        }
+    }
+
     function spawnShapes() {
         blockContainer.innerHTML = '';
-        for (let i = 0; i < 3; i++) createDraggableShape();
+        for (let i = 0; i < 3; i++) {
+            const matrix = shapes[Math.floor(Math.random() * shapes.length)];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            const wrapper = document.createElement('div');
+            wrapper.classList.add('draggable-shape');
+            wrapper.style.gridTemplateRows = `repeat(${matrix.length}, 1fr)`;
+            wrapper.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
+            matrix.forEach(row => row.forEach(val => {
+                const b = document.createElement('div');
+                if(val) { b.classList.add('shape-cell'); b.style.backgroundColor = color; }
+                wrapper.appendChild(b);
+            }));
+            wrapper.dataset.matrix = JSON.stringify(matrix);
+            wrapper.dataset.color = color;
+            attachDragEvents(wrapper);
+            blockContainer.appendChild(wrapper);
+        }
     }
 
-    function createDraggableShape() {
-        const shapeMatrix = shapes[Math.floor(Math.random() * shapes.length)];
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        
-        const wrapper = document.createElement('div');
-        wrapper.classList.add('draggable-shape');
-        wrapper.style.gridTemplateRows = `repeat(${shapeMatrix.length}, 1fr)`;
-        wrapper.style.gridTemplateColumns = `repeat(${shapeMatrix[0].length}, 1fr)`;
-        
-        shapeMatrix.forEach(row => {
-            row.forEach(val => {
-                const block = document.createElement('div');
-                if (val === 1) {
-                    block.classList.add('shape-cell');
-                    block.style.backgroundColor = color;
-                }
-                wrapper.appendChild(block);
-            });
-        });
-
-        wrapper.dataset.matrix = JSON.stringify(shapeMatrix);
-        wrapper.dataset.color = color;
-        addDragLogic(wrapper);
-        blockContainer.appendChild(wrapper);
-    }
-
-    function addDragLogic(element) {
-        let isDragging = false, startX, startY, clone;
-        const startDrag = (e) => {
+    // --- Drag & Drop Logic ---
+    function attachDragEvents(el) {
+        let isDragging = false, clone = null;
+        const onStart = (e) => {
             isDragging = true;
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const rect = element.getBoundingClientRect();
-            startX = clientX - rect.left;
-            startY = clientY - rect.top;
-
-            clone = element.cloneNode(true);
+            const touch = e.touches ? e.touches[0] : e;
+            const rect = el.getBoundingClientRect();
+            clone = el.cloneNode(true);
             clone.classList.add('dragging');
-            clone.style.width = element.offsetWidth + 'px';
-            clone.style.transform = 'scale(1.5)';
-            clone.style.left = rect.left + 'px';
-            clone.style.top = rect.top + 'px';
+            const gridCellSize = gridEl.firstElementChild.getBoundingClientRect().width;
+            clone.style.transform = `scale(${(gridCellSize * 0.9) / 20})`;
+            clone.style.width = rect.width + 'px';
             document.body.appendChild(clone);
-            element.style.opacity = '0';
+            el.style.opacity = '0';
+            moveClone(touch.clientX, touch.clientY);
         };
-
-        const moveDrag = (e) => {
-            if (!isDragging || !clone) return;
-            e.preventDefault();
-            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            clone.style.left = `${clientX - startX}px`;
-            clone.style.top = `${clientY - startY}px`;
-            
-            // Get raw coordinates
-            highlightHover(clientX, clientY, JSON.parse(element.dataset.matrix));
+        const onMove = (e) => {
+            if (!isDragging) return;
+            const touch = e.touches ? e.touches[0] : e;
+            moveClone(touch.clientX, touch.clientY);
+            const anchor = getGridAnchor(touch.clientX, touch.clientY, JSON.parse(el.dataset.matrix));
+            document.querySelectorAll('.hovered').forEach(c => c.classList.remove('hovered'));
+            if (anchor && canPlace(anchor.r, anchor.c, JSON.parse(el.dataset.matrix))) {
+                JSON.parse(el.dataset.matrix).forEach((row, i) => row.forEach((val, j) => {
+                    if(val) {
+                        const cell = document.querySelector(`.cell[data-r='${anchor.r+i}'][data-c='${anchor.c+j}']`);
+                        if(cell) cell.classList.add('hovered');
+                    }
+                }));
+            }
         };
-
-        const endDrag = (e) => {
+        const onEnd = (e) => {
             if (!isDragging) return;
             isDragging = false;
-            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
-            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            const matrix = JSON.parse(el.dataset.matrix);
+            const anchor = getGridAnchor(touch.clientX, touch.clientY, matrix);
             
-            const matrix = JSON.parse(element.dataset.matrix);
-            if (tryPlaceBlock(clientX, clientY, matrix, element.dataset.color)) {
-                element.remove();
-                clone.remove();
+            if (anchor && canPlace(anchor.r, anchor.c, matrix)) {
+                // Successfully placed
+                placeBlock(anchor.r, anchor.c, matrix, el.dataset.color);
+                el.remove();
+                
+                // Check lines and update streak
                 checkLines();
+                if(!didClearThisTurn) {
+                    comboStreak = 0;
+                    updateComboUI();
+                }
+
                 if (blockContainer.children.length === 0) spawnShapes();
                 checkGameOver();
-            } else {
-                clone.remove();
-                element.style.opacity = '1';
+            } else { 
+                el.style.opacity = '1'; // Snap back
             }
-            clearHighlights();
+            if (clone) clone.remove();
+            document.querySelectorAll('.hovered').forEach(c => c.classList.remove('hovered'));
         };
-
-        element.addEventListener('mousedown', startDrag);
-        window.addEventListener('mousemove', moveDrag);
-        window.addEventListener('mouseup', endDrag);
-        element.addEventListener('touchstart', startDrag, {passive: false});
-        window.addEventListener('touchmove', moveDrag, {passive: false});
-        window.addEventListener('touchend', endDrag);
+        const moveClone = (x, y) => { clone.style.left = (x - clone.offsetWidth/2) + 'px'; clone.style.top = (y - clone.offsetHeight/2) + 'px'; };
+        el.addEventListener('mousedown', onStart); window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onEnd);
+        el.addEventListener('touchstart', onStart, {passive: false}); window.addEventListener('touchmove', onMove, {passive: false}); window.addEventListener('touchend', onEnd);
     }
 
-    function getGridCoordinates(x, y) {
-        const gridRect = gridEl.getBoundingClientRect();
-        const cellWidth = gridEl.firstElementChild.getBoundingClientRect().width;
-        // Adjust for gap
-        const totalCellSize = cellWidth + 4; 
-        
-        // Offset to center the drop under finger/mouse
-        const col = Math.floor((x - gridRect.left - (cellWidth/2)) / totalCellSize);
-        const row = Math.floor((y - gridRect.top - (cellWidth/2)) / totalCellSize);
-        return {r: row, c: col};
-    }
-
-    function tryPlaceBlock(x, y, matrix, color) {
-        const {r, c} = getGridCoordinates(x, y);
-        if (canPlace(r, c, matrix)) {
-            place(r, c, matrix, color);
-            return true;
-        }
-        return false;
+    function getGridAnchor(x, y, matrix) {
+        const elUnder = document.elementFromPoint(x, y);
+        if (!elUnder || !elUnder.classList.contains('cell')) return null;
+        return { r: parseInt(elUnder.dataset.r) - Math.floor(matrix.length/2), c: parseInt(elUnder.dataset.c) - Math.floor(matrix[0].length/2) };
     }
 
     function canPlace(r, c, matrix) {
-        for (let i = 0; i < matrix.length; i++) {
-            for (let j = 0; j < matrix[0].length; j++) {
-                if (matrix[i][j] === 1) {
-                    let tr = r + i, tc = c + j;
-                    if (tr < 0 || tr >= gridSize || tc < 0 || tc >= gridSize || grid[tr][tc] !== null) return false;
-                }
-            }
-        }
-        return true;
+        return matrix.every((row, i) => row.every((val, j) => {
+            if(!val) return true;
+            let tr = r+i, tc = c+j;
+            return tr >= 0 && tr < gridSize && tc >= 0 && tc < gridSize && grid[tr][tc] === null;
+        }));
     }
 
-    function place(r, c, matrix, color) {
-        for (let i = 0; i < matrix.length; i++) {
-            for (let j = 0; j < matrix[0].length; j++) {
-                if (matrix[i][j] === 1) {
-                    grid[r + i][c + j] = color;
-                    const cell = document.querySelector(`.cell[data-row='${r+i}'][data-col='${c+j}']`);
-                    cell.style.backgroundColor = color;
-                    cell.classList.add('filled');
-                }
+    function placeBlock(r, c, matrix, color) {
+        didClearThisTurn = false; // Reset turn flag
+        sfx.play('pop');
+        matrix.forEach((row, i) => row.forEach((val, j) => {
+            if(val) {
+                grid[r+i][c+j] = color;
+                const cell = document.querySelector(`.cell[data-r='${r+i}'][data-c='${c+j}']`);
+                cell.style.backgroundColor = color; cell.classList.add('filled');
             }
-        }
-        updateScore(score + 10);
-    }
-
-    function highlightHover(x, y, matrix) {
-        clearHighlights();
-        const {r, c} = getGridCoordinates(x, y);
-        if (canPlace(r, c, matrix)) {
-            for (let i = 0; i < matrix.length; i++) {
-                for (let j = 0; j < matrix[0].length; j++) {
-                    if (matrix[i][j] === 1) {
-                        const cell = document.querySelector(`.cell[data-row='${r+i}'][data-col='${c+j}']`);
-                        if (cell) cell.classList.add('hovered');
-                    }
-                }
-            }
-        }
-    }
-
-    function clearHighlights() {
-        document.querySelectorAll('.hovered').forEach(el => el.classList.remove('hovered'));
+        }));
+        
+        // Base score multiplied by current combo streak (min 1)
+        const multiplier = Math.max(1, comboStreak);
+        updateScore(score + (10 * multiplier));
+        showFeedback(multiplier > 1 ? `+${10*multiplier}` : "+10", "anim-score");
     }
 
     function checkLines() {
         let rows = [], cols = [];
-        for (let r = 0; r < gridSize; r++) {
-            if (grid[r].every(val => val !== null)) rows.push(r);
+        for(let r=0; r<gridSize; r++) if(grid[r].every(v => v!==null)) rows.push(r);
+        for(let c=0; c<gridSize; c++) {
+            let full = true; for(let r=0; r<gridSize; r++) if(grid[r][c]===null) full = false;
+            if(full) cols.push(c);
         }
-        for (let c = 0; c < gridSize; c++) {
-            let full = true;
-            for (let r = 0; r < gridSize; r++) if (grid[r][c] === null) full = false;
-            if (full) cols.push(c);
-        }
-
-        if (rows.length > 0 || cols.length > 0) {
-            clearLines(rows, cols);
-        }
-    }
-
-    function clearLines(rows, cols) {
-        const uniqueCells = new Set();
-        rows.forEach(r => { for(let c=0; c<gridSize; c++) uniqueCells.add(`${r},${c}`); });
-        cols.forEach(c => { for(let r=0; r<gridSize; r++) uniqueCells.add(`${r},${c}`); });
-
-        // Trigger Feedback Text
-        const totalLines = rows.length + cols.length;
-        triggerFeedback(totalLines);
-
-        // Calculate Score
-        const points = uniqueCells.size * 10 * (totalLines > 1 ? totalLines : 1);
-        updateScore(score + points);
-
-        // Visual Clear
-        uniqueCells.forEach(key => {
-            const [r, c] = key.split(',').map(Number);
-            grid[r][c] = null;
-            const cell = document.querySelector(`.cell[data-row='${r}'][data-col='${c}']`);
-            cell.style.transform = 'scale(0)';
-            setTimeout(() => {
-                cell.style.backgroundColor = '';
-                cell.classList.remove('filled');
-                cell.style.transform = 'scale(1)';
-            }, 200);
-        });
-    }
-
-    function triggerFeedback(lineCount) {
-        const messages = ["", "NICE!", "DOUBLE!", "TRIPLE!", "BLAST!", "INSANE!", "GODLIKE!"];
-        const text = messages[Math.min(lineCount, messages.length - 1)];
         
-        const el = document.createElement('div');
-        el.classList.add('floating-text');
-        el.textContent = text;
-        feedbackContainer.appendChild(el);
+        const totalLines = rows.length + cols.length;
 
-        // Remove from DOM after animation
+        if(totalLines > 0) {
+            didClearThisTurn = true;
+            comboStreak++;
+            updateComboUI();
+            sfx.play('clear');
+            if(totalLines >= 2) triggerShake();
+
+            let cells = new Set();
+            rows.forEach(r => { for(let c=0; c<gridSize; c++) cells.add(`${r},${c}`); });
+            cols.forEach(c => { for(let r=0; r<gridSize; r++) cells.add(`${r},${c}`); });
+            
+            // Score Calc: (Cells * 10) * (Line Bonus) * (Combo Streak)
+            const lineBonus = totalLines > 1 ? totalLines : 1;
+            const points = (cells.size * 10) * lineBonus * comboStreak;
+            updateScore(score + points);
+            
+            const phrases = ["NICE!", "SWEET!", "AWESOME!"];
+            const text = comboStreak > 2 ? `STREAK x${comboStreak}!` : (totalLines > 1 ? `COMBO x${totalLines}!` : phrases[Math.floor(Math.random()*phrases.length)]);
+            showFeedback(text, "anim-blast");
+
+            cells.forEach(k => {
+                const [r, c] = k.split(',').map(Number); 
+                const color = grid[r][c];
+                grid[r][c] = null;
+                const cell = document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
+                // Spawn particles before clearing
+                spawnParticles(cell, color);
+                cell.style.backgroundColor = ''; cell.classList.remove('filled');
+            });
+        }
+    }
+
+    // --- Juice Functions (Particles & Shake) ---
+    function spawnParticles(cellEl, color) {
+        const rect = cellEl.getBoundingClientRect();
+        const containerRect = gridWrapper.getBoundingClientRect();
+        // Calculate center of cell relative to container
+        const x = rect.left - containerRect.left + rect.width / 2;
+        const y = rect.top - containerRect.top + rect.height / 2;
+
+        for (let i = 0; i < 6; i++) {
+            const p = document.createElement('div');
+            p.classList.add('particle');
+            p.style.backgroundColor = color;
+            p.style.left = `${x}px`; p.style.top = `${y}px`;
+            particleLayer.appendChild(p);
+
+            // Randomize movement
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = Math.random() * 40 + 20;
+            const tx = Math.cos(angle) * velocity;
+            const ty = Math.sin(angle) * velocity;
+            const rot = Math.random() * 360;
+
+            p.animate([
+                { transform: `translate(-50%, -50%) rotate(0deg) scale(1)`, opacity: 1 },
+                { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${rot}deg) scale(0)`, opacity: 0 }
+            ], { duration: 600, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' })
+            .onfinish = () => p.remove();
+        }
+    }
+
+    function triggerShake() {
+        gridEl.classList.add('shake-heavy');
+        setTimeout(() => gridEl.classList.remove('shake-heavy'), 400);
+    }
+
+    function showFeedback(text, anim) {
+        feedbackLayer.innerHTML = '';
+        const el = document.createElement('div'); el.classList.add('float-text', anim); el.textContent = text;
+        feedbackLayer.appendChild(el);
         setTimeout(() => el.remove(), 800);
     }
 
-    function updateScore(val) {
-        score = val;
-        scoreEl.textContent = score;
-        if (score > highScore) {
-            highScore = score;
-            highScoreEl.textContent = highScore;
-            localStorage.setItem('bb_highscore', highScore);
-        }
+    function applyTheme() {
+        const theme = themes[currentThemeIndex];
+        document.body.setAttribute('data-theme', theme);
+        gameThemeBtn.textContent = theme.toUpperCase();
     }
 
     function checkGameOver() {
-        setTimeout(() => {
-            const shapes = Array.from(blockContainer.children);
-            if (shapes.length === 0) return;
-
-            let possible = false;
-            // Check if ANY shape can fit ANYWHERE
-            for (let shape of shapes) {
-                const matrix = JSON.parse(shape.dataset.matrix);
-                for (let r = 0; r < gridSize; r++) {
-                    for (let c = 0; c < gridSize; c++) {
-                        if (canPlace(r, c, matrix)) {
-                            possible = true;
-                            break;
-                        }
-                    }
-                    if (possible) break;
-                }
-                if (possible) break;
-            }
-
-            if (!possible) {
-                finalScoreEl.textContent = score;
-                modal.classList.remove('hidden');
-            }
-        }, 300);
+        const shapesLeft = Array.from(blockContainer.children);
+        let possible = shapesLeft.some(s => {
+            const m = JSON.parse(s.dataset.matrix);
+            for(let r=0; r<gridSize; r++) for(let c=0; c<gridSize; c++) if(canPlace(r, c, m)) return true;
+            return false;
+        });
+        if(!possible) { 
+            sfx.play('gameover');
+            goTitle.textContent = score === highScore && score > 0 ? "NEW HIGH SCORE!" : "NO MOVES LEFT!";
+            finalScoreEl.textContent = score; modal.classList.remove('hidden'); 
+        }
     }
 
-    restartBtn.addEventListener('click', init);
+    // --- Event Listeners ---
+    startBtn.addEventListener('click', startGame);
+    backToMenuBtn.addEventListener('click', showMenu);
+    exitToMenuBtn.addEventListener('click', showMenu);
+    restartBtn.addEventListener('click', resetGame);
+    muteBtns.forEach(btn => btn.addEventListener('click', toggleMute));
+    [menuThemeBtn, gameThemeBtn].forEach(b => b.addEventListener('click', () => {
+        currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+        applyTheme();
+    }));
+
     init();
 });
