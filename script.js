@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
     const FEEDBACK_PHRASES = ["NICE!", "SWEET!", "AWESOME!"];
 
-    // ===== DOM ELEMENTS =====
+    // ===== DOM HELPERS =====
     const $ = id => document.getElementById(id);
     const $$ = sel => document.querySelectorAll(sel);
 
@@ -232,28 +232,6 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         },
 
-        placeBlock(r, c, matrix, color) {
-            state.didClearThisTurn = false;
-            audio.play('pop');
-
-            matrix.forEach((row, i) => {
-                row.forEach((val, j) => {
-                    if (val) {
-                        const tr = r + i;
-                        const tc = c + j;
-                        state.grid[tr][tc] = color;
-                        const cell = this.getCell(tr, tc);
-                        cell.style.backgroundColor = color;
-                        cell.classList.add('filled');
-                    }
-                });
-            });
-
-            const multiplier = Math.max(1, state.comboStreak);
-            ui.updateScore(state.score + (10 * multiplier));
-            ui.showFeedback(multiplier > 1 ? `+${10 * multiplier}` : "+10", "anim-score");
-        },
-
         checkLines() {
             const rows = [];
             const cols = [];
@@ -324,6 +302,88 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // ===== SHAPE AVAILABILITY =====
+    function canShapeFitAnywhere(matrix) {
+        for (let r = 0; r < GRID_SIZE; r++) {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                if (grid.canPlace(r, c, matrix)) return true;
+            }
+        }
+        return false;
+    }
+
+    function updateShapeAvailability() {
+        const shapesLeft = Array.from(dom.blockContainer.children);
+        shapesLeft.forEach(shapeEl => {
+            const matrix = JSON.parse(shapeEl.dataset.matrix);
+            const canFit = canShapeFitAnywhere(matrix);
+            shapeEl.classList.toggle('disabled', !canFit);
+        });
+    }
+
+    // ===== PREVIEW: WHICH LINES WILL POP =====
+    function computeLinesForPlacement(r, c, matrix) {
+        // Copy grid
+        const tempGrid = state.grid.map(row => row.slice());
+
+        // Apply hypothetical placement
+        matrix.forEach((rowArr, i) => {
+            rowArr.forEach((val, j) => {
+                if (val) {
+                    const tr = r + i;
+                    const tc = c + j;
+                    if (tr >= 0 && tr < GRID_SIZE && tc >= 0 && tc < GRID_SIZE) {
+                        tempGrid[tr][tc] = true;
+                    }
+                }
+            });
+        });
+
+        const rows = [];
+        const cols = [];
+
+        // Check rows
+        for (let rr = 0; rr < GRID_SIZE; rr++) {
+            if (tempGrid[rr].every(v => v !== null)) rows.push(rr);
+        }
+
+        // Check columns
+        for (let cc = 0; cc < GRID_SIZE; cc++) {
+            let full = true;
+            for (let rr = 0; rr < GRID_SIZE; rr++) {
+                if (tempGrid[rr][cc] === null) {
+                    full = false;
+                    break;
+                }
+            }
+            if (full) cols.push(cc);
+        }
+
+        return { rows, cols };
+    }
+
+    function clearPreviewLines() {
+        document.querySelectorAll('.cell.will-clear').forEach(cell => {
+            cell.classList.remove('will-clear');
+        });
+    }
+
+    function highlightPreviewLines(rows, cols) {
+        clearPreviewLines();
+        rows.forEach(r => {
+            for (let c = 0; c < GRID_SIZE; c++) {
+                const cell = grid.getCell(r, c);
+                if (cell) cell.classList.add('will-clear');
+            }
+        });
+        cols.forEach(c => {
+            for (let r = 0; r < GRID_SIZE; r++) {
+                const cell = grid.getCell(r, c);
+                if (cell) cell.classList.add('will-clear');
+            }
+        });
+    }
+
     // ===== SHAPE MANAGEMENT =====
     const shapes = {
         dragState: null,
@@ -341,7 +401,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 wrapper.dataset.matrix = JSON.stringify(matrix);
                 wrapper.dataset.color = color;
                 
-                // Iterate through matrix properly - row by row
                 matrix.forEach(row => {
                     row.forEach(val => {
                         const block = document.createElement('div');
@@ -357,12 +416,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 wrapper.addEventListener('pointerdown', (e) => this.onDragStart(e, wrapper));
                 dom.blockContainer.appendChild(wrapper);
             }
+
+            updateShapeAvailability();
         },
 
         onDragStart(e, element) {
             e.preventDefault();
             const matrix = JSON.parse(element.dataset.matrix);
             const color = element.dataset.color;
+
+            // If shape has no possible placement, ignore drag
+            if (!canShapeFitAnywhere(matrix)) return;
             
             const mirror = element.cloneNode(true);
             mirror.className = 'dragging-mirror';
@@ -373,13 +437,11 @@ document.addEventListener('DOMContentLoaded', () => {
             mirror.style.width = width + 'px';
             mirror.style.gap = '4px';
             
-            // Style each child block properly
-            Array.from(mirror.children).forEach((child, idx) => {
+            Array.from(mirror.children).forEach(child => {
                 child.style.width = gridCellSize + 'px';
                 child.style.height = gridCellSize + 'px';
                 child.style.borderRadius = '3px';
                 child.style.boxShadow = 'inset 0 -2px 0 rgba(0,0,0,0.2)';
-                // Keep the background color and opacity from the original
                 if (child.style.opacity !== '0') {
                     child.style.backgroundColor = color;
                 }
@@ -388,11 +450,14 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.appendChild(mirror);
             element.style.opacity = '0';
 
+            // Reset clear flag for this move
+            state.didClearThisTurn = false;
+
             this.dragState = {
                 source: element,
-                mirror: mirror,
-                matrix: matrix,
-                color: color,
+                mirror,
+                matrix,
+                color,
                 offsetX: width / 2,
                 offsetY: (gridCellSize * matrix.length) / 2 + 70
             };
@@ -410,10 +475,12 @@ document.addEventListener('DOMContentLoaded', () => {
             mirror.style.left = (x - offsetX) + 'px';
             mirror.style.top = (y - offsetY) + 'px';
 
+            // Clear any previous ghost / preview
             document.querySelectorAll('.ghost').forEach(c => {
                 c.classList.remove('ghost');
                 c.style.removeProperty('--ghost-color');
             });
+            clearPreviewLines();
             
             const gridRect = dom.grid.getBoundingClientRect();
             const cellSize = document.querySelector('.cell').offsetWidth + 4;
@@ -425,6 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = Math.round(relY / cellSize);
 
             if (grid.canPlace(row, col, matrix)) {
+                // Ghost cells
                 matrix.forEach((rowArr, i) => {
                     rowArr.forEach((val, j) => {
                         if (val) {
@@ -437,6 +505,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
                 this.dragState.target = { r: row, c: col };
+
+                // Preview lines that would be cleared
+                const { rows, cols } = computeLinesForPlacement(row, col, matrix);
+                if (rows.length || cols.length) {
+                    highlightPreviewLines(rows, cols);
+                }
             } else {
                 this.dragState.target = null;
             }
@@ -447,10 +521,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const { source, mirror, matrix, color, target } = this.dragState;
             mirror.remove();
+
+            // Clear ghost & preview
             document.querySelectorAll('.ghost').forEach(c => {
                 c.classList.remove('ghost');
                 c.style.removeProperty('--ghost-color');
             });
+            clearPreviewLines();
 
             if (target) {
                 audio.play('pop');
@@ -472,6 +549,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.showFeedback(multiplier > 1 ? `+${10 * multiplier}` : "+10", "anim-score");
                 
                 grid.checkLines();
+
+                // Reset streak if this move didn't clear any line
                 if (!state.didClearThisTurn) {
                     state.comboStreak = 0;
                     ui.updateComboUI();
@@ -479,7 +558,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (dom.blockContainer.children.length === 0) {
                     this.spawn();
+                } else {
+                    updateShapeAvailability();
                 }
+
                 game.checkGameOver();
             } else {
                 source.style.opacity = '1';
