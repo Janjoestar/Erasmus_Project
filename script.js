@@ -4,10 +4,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const THEMES = ['classic', 'dark', 'forest'];
     const COLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
     const SHAPES = [
-        [[1]], [[1,1]], [[1,1,1]], [[1,1,1,1]], 
-        [[1],[1]], [[1],[1],[1]],
-        [[1,1],[1,1]], [[1,1,1],[0,1,0]], 
-        [[1,0],[1,0],[1,1]], [[1,1],[1,0]]
+        // Single & Lines
+        [[1]], 
+        [[1,1]], 
+        [[1,1,1]], 
+        [[1,1,1,1]], 
+        [[1,1,1,1,1]],
+        [[1],[1]], 
+        [[1],[1],[1]],
+        [[1],[1],[1],[1]],
+        // Squares
+        [[1,1],[1,1]], 
+        [[1,1,1],[1,1,1],[1,1,1]], // 3x3
+        // L shapes
+        [[1,0],[1,0],[1,1]], 
+        [[1,1],[1,0]], 
+        [[0,1],[0,1],[1,1]],
+        [[1,0],[1,1]],
+        [[1,1,1],[1,0,0]],
+        [[1,1,1],[0,0,1]],
+        // T shapes
+        [[1,1,1],[0,1,0]], 
+        [[0,1],[1,1],[0,1]],
+        // Z shapes
+        [[1,1,0],[0,1,1]],
+        [[0,1,1],[1,1,0]],
+        // Plus
+        [[0,1,0],[1,1,1],[0,1,0]]
     ];
     const FEEDBACK_PHRASES = ["NICE!", "SWEET!", "AWESOME!"];
 
@@ -66,7 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const now = this.ctx.currentTime;
             const configs = {
-                pop: { type: 'sine', freq: 600, vol: 0.2, dur: 0.1 },
+                pop: { type: 'sine', freq: 600, vol: 0.08, dur: 0.1 },
                 clear: { type: 'sawtooth', freq: 400, freqEnd: 100, vol: 0.3, dur: 0.3 },
                 gameover: { type: 'triangle', freq: 200, freqEnd: 50, vol: 0.3, dur: 0.8 },
                 highscore: { type: 'square', freq: 523.25, vol: 0.2, dur: 0.5 }
@@ -196,10 +219,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
         },
 
-        clearHoverStates() {
-            $$('.hovered').forEach(c => c.classList.remove('hovered'));
-        },
-
         canPlace(r, c, matrix) {
             return matrix.every((row, i) => 
                 row.every((val, j) => {
@@ -317,23 +336,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 const color = COLORS[Math.floor(Math.random() * COLORS.length)];
                 
                 const wrapper = document.createElement('div');
-                wrapper.className = 'draggable-shape';
-                wrapper.style.gridTemplateRows = `repeat(${matrix.length}, 1fr)`;
+                wrapper.className = 'shape';
                 wrapper.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
+                wrapper.dataset.matrix = JSON.stringify(matrix);
+                wrapper.dataset.color = color;
                 
+                // Iterate through matrix properly - row by row
                 matrix.forEach(row => {
                     row.forEach(val => {
                         const block = document.createElement('div');
                         if (val) {
-                            block.className = 'shape-cell';
                             block.style.backgroundColor = color;
+                        } else {
+                            block.style.opacity = '0';
                         }
                         wrapper.appendChild(block);
                     });
                 });
-
-                wrapper.dataset.matrix = JSON.stringify(matrix);
-                wrapper.dataset.color = color;
+                
                 wrapper.addEventListener('pointerdown', (e) => this.onDragStart(e, wrapper));
                 dom.blockContainer.appendChild(wrapper);
             }
@@ -345,16 +365,24 @@ document.addEventListener('DOMContentLoaded', () => {
             const color = element.dataset.color;
             
             const mirror = element.cloneNode(true);
-            mirror.className = 'dragging';
+            mirror.className = 'dragging-mirror';
+            mirror.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
             
-            const gridCellSize = dom.grid.firstElementChild.offsetWidth;
+            const gridCellSize = document.querySelector('.cell').offsetWidth;
             const width = gridCellSize * matrix[0].length + (matrix[0].length - 1) * 4;
             mirror.style.width = width + 'px';
             mirror.style.gap = '4px';
             
-            Array.from(mirror.children).forEach(child => {
+            // Style each child block properly
+            Array.from(mirror.children).forEach((child, idx) => {
                 child.style.width = gridCellSize + 'px';
                 child.style.height = gridCellSize + 'px';
+                child.style.borderRadius = '3px';
+                child.style.boxShadow = 'inset 0 -2px 0 rgba(0,0,0,0.2)';
+                // Keep the background color and opacity from the original
+                if (child.style.opacity !== '0') {
+                    child.style.backgroundColor = color;
+                }
             });
 
             document.body.appendChild(mirror);
@@ -366,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 matrix: matrix,
                 color: color,
                 offsetX: width / 2,
-                offsetY: (gridCellSize * matrix.length) / 2 + 70 // Offset so finger doesn't block view
+                offsetY: (gridCellSize * matrix.length) / 2 + 70
             };
 
             this.onDragMove(e);
@@ -378,16 +406,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const x = e.clientX || (e.touches ? e.touches[0].clientX : 0);
             const y = e.clientY || (e.touches ? e.touches[0].clientY : 0);
             
-            const { mirror, matrix, offsetX, offsetY } = this.dragState;
+            const { mirror, matrix, color, offsetX, offsetY } = this.dragState;
             mirror.style.left = (x - offsetX) + 'px';
             mirror.style.top = (y - offsetY) + 'px';
 
-            grid.clearHoverStates();
+            document.querySelectorAll('.ghost').forEach(c => {
+                c.classList.remove('ghost');
+                c.style.removeProperty('--ghost-color');
+            });
             
             const gridRect = dom.grid.getBoundingClientRect();
-            const cellSize = dom.grid.firstElementChild.offsetWidth + 4;
+            const cellSize = document.querySelector('.cell').offsetWidth + 4;
 
-            // Calculate grid position under center of dragged shape
             const relX = (x - gridRect.left) - (mirror.offsetWidth / 2) + (cellSize / 4);
             const relY = (y - gridRect.top) - (mirror.offsetHeight / 2) + (cellSize / 4) - 70;
 
@@ -399,7 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     rowArr.forEach((val, j) => {
                         if (val) {
                             const cell = grid.getCell(row + i, col + j);
-                            if (cell) cell.classList.add('hovered');
+                            if (cell) {
+                                cell.classList.add('ghost');
+                                cell.style.setProperty('--ghost-color', color);
+                            }
                         }
                     });
                 });
@@ -414,11 +447,29 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const { source, mirror, matrix, color, target } = this.dragState;
             mirror.remove();
-            grid.clearHoverStates();
+            document.querySelectorAll('.ghost').forEach(c => {
+                c.classList.remove('ghost');
+                c.style.removeProperty('--ghost-color');
+            });
 
             if (target) {
-                grid.placeBlock(target.r, target.c, matrix, color);
+                audio.play('pop');
                 source.remove();
+                
+                matrix.forEach((rowArr, i) => {
+                    rowArr.forEach((val, j) => {
+                        if (val) {
+                            state.grid[target.r + i][target.c + j] = color;
+                            const cell = grid.getCell(target.r + i, target.c + j);
+                            cell.style.backgroundColor = color;
+                            cell.classList.add('filled');
+                        }
+                    });
+                });
+                
+                const multiplier = Math.max(1, state.comboStreak);
+                ui.updateScore(state.score + (10 * multiplier));
+                ui.showFeedback(multiplier > 1 ? `+${10 * multiplier}` : "+10", "anim-score");
                 
                 grid.checkLines();
                 if (!state.didClearThisTurn) {

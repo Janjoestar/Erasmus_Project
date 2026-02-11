@@ -275,6 +275,13 @@ body {
     opacity: 0.6; 
 }
 
+.cell.ghost {
+    background-color: var(--ghost-color);
+    opacity: 0.5;
+    border: 2px solid var(--ghost-color);
+    box-shadow: inset 0 0 8px rgba(255,255,255,0.3);
+}
+
 .grid.combo-active { 
     box-shadow: 0 0 20px var(--glow-color), inset 0 0 10px var(--glow-color); 
     border: 2px solid var(--glow-color); 
@@ -404,24 +411,28 @@ body {
     z-index: 2; 
 }
 
+.shape,
 .draggable-shape { 
     display: grid; 
     gap: 2px; 
     z-index: 5;
 }
 
-.shape-cell { 
-    width: 20px; 
-    height: 20px; 
-    border-radius: 3px; 
-    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2); 
+.shape > div,
+.draggable-shape > div {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
 }
 
-.dragging { 
+.dragging,
+.dragging-mirror { 
     position: fixed; 
     z-index: 1000; 
     pointer-events: none; 
-    opacity: 0.9; 
+    opacity: 0.9;
+    display: grid;
 }
 
 /* Modal */
