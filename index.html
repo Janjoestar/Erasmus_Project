@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Better Blocks</title>
-    <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <!-- Main Menu -->
@@ -47,10 +47,12 @@
                     <button id="game-theme-btn" class="theme-toggle">THEME</button>
                 </div>
                 
-                <!-- Boss UI (Hidden by default) -->
                 <div id="boss-ui" class="boss-container">
                     <div class="boss-header">
-                        <span id="boss-name">BLOCK GOLEM</span>
+                        <div class="boss-identity">
+                            <div id="boss-icon" class="boss-icon"></div>
+                            <span id="boss-name">BLOCK GOLEM</span>
+                        </div>
                         <span id="boss-hp-text">100%</span>
                     </div>
                     <div class="hp-bar-bg">
@@ -65,21 +67,106 @@
                             <span class="label">Score</span>
                             <span id="score">0</span>
                         </div>
-                        <div class="score-box best">
-                            <span class="label">Best</span>
+                        <div class="score-box best" id="best-score-box">
+                            <span class="label" id="best-label">Best</span>
                             <span id="high-score">0</span>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <div class="grid-wrapper">
-                <div id="grid" class="grid"></div>
-                <div id="feedback-layer"></div>
-                <div id="particle-layer"></div>
+            <div class="main-game-area">
+                <!-- Boss Progress Tracker -->
+                <div id="boss-progress" class="boss-progress hidden">
+                    <div class="boss-node" data-boss="0">
+                        <div class="boss-avatar">
+                            <svg viewBox="0 0 40 40" class="boss-svg">
+                                <rect x="10" y="12" width="20" height="20" fill="currentColor"/>
+                                <rect x="8" y="16" width="4" height="4" fill="currentColor"/>
+                                <rect x="28" y="16" width="4" height="4" fill="currentColor"/>
+                                <rect x="14" y="20" width="3" height="3" fill="currentColor" opacity="0.6"/>
+                                <rect x="23" y="20" width="3" height="3" fill="currentColor" opacity="0.6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="boss-connector"></div>
+                    <div class="boss-node" data-boss="1">
+                        <div class="boss-avatar">
+                            <svg viewBox="0 0 40 40" class="boss-svg">
+                                <path d="M 20 10 Q 15 15, 12 20 Q 15 25, 20 30 Q 25 25, 28 20 Q 25 15, 20 10" fill="currentColor"/>
+                                <circle cx="17" cy="18" r="2" fill="currentColor" opacity="0.6"/>
+                                <circle cx="23" cy="18" r="2" fill="currentColor" opacity="0.6"/>
+                                <path d="M 18 24 Q 20 26, 22 24" stroke="currentColor" stroke-width="2" fill="none"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="boss-connector"></div>
+                    <div class="boss-node" data-boss="2">
+                        <div class="boss-avatar">
+                            <svg viewBox="0 0 40 40" class="boss-svg">
+                                <circle cx="20" cy="16" r="8" fill="currentColor"/>
+                                <circle cx="14" cy="26" r="5" fill="currentColor"/>
+                                <circle cx="26" cy="26" r="5" fill="currentColor"/>
+                                <circle cx="18" cy="14" r="1.5" fill="currentColor" opacity="0.6"/>
+                                <circle cx="22" cy="14" r="1.5" fill="currentColor" opacity="0.6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="boss-connector"></div>
+                    <div class="boss-node" data-boss="3">
+                        <div class="boss-avatar">
+                            <svg viewBox="0 0 40 40" class="boss-svg">
+                                <rect x="12" y="8" width="16" height="24" fill="currentColor"/>
+                                <rect x="10" y="14" width="4" height="4" fill="currentColor"/>
+                                <rect x="26" y="14" width="4" height="4" fill="currentColor"/>
+                                <rect x="14" y="18" width="4" height="6" fill="currentColor" opacity="0.6"/>
+                                <rect x="22" y="18" width="4" height="6" fill="currentColor" opacity="0.6"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="boss-connector"></div>
+                    <div class="boss-node" data-boss="4">
+                        <div class="boss-avatar">
+                            <svg viewBox="0 0 40 40" class="boss-svg">
+                                <rect x="10" y="10" width="20" height="20" fill="currentColor" transform="rotate(45 20 20)"/>
+                                <circle cx="20" cy="20" r="4" fill="currentColor" opacity="0.6"/>
+                                <rect x="15" y="8" width="10" height="2" fill="currentColor"/>
+                                <rect x="15" y="30" width="10" height="2" fill="currentColor"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="boss-connector"></div>
+                    <div class="boss-node" data-boss="5">
+                        <div class="boss-avatar">
+                            <svg viewBox="0 0 40 40" class="boss-svg">
+                                <circle cx="20" cy="20" r="12" fill="currentColor"/>
+                                <circle cx="20" cy="20" r="6" fill="currentColor" opacity="0.3"/>
+                                <path d="M 12 12 L 28 28 M 28 12 L 12 28" stroke="currentColor" stroke-width="2" opacity="0.6"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-wrapper">
+                    <div id="grid" class="grid"></div>
+                    <div id="feedback-layer"></div>
+                    <div id="particle-layer"></div>
+                </div>
             </div>
 
             <div id="block-container" class="block-container"></div>
+        </div>
+    </div>
+
+    <!-- Victory Cutscene Overlay -->
+    <div id="victory-overlay">
+        <div class="victory-content">
+            <div class="victory-text">BOSS DEFEATED!</div>
+            <div class="victory-hp-container">
+                <div class="victory-hp-bar">
+                    <div class="victory-hp-fill" id="victory-hp-fill"></div>
+                </div>
+            </div>
         </div>
     </div>
 

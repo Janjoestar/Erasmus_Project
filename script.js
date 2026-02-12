@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     // ===== CONSTANTS =====
     const GRID_SIZE = 8;
-    const THEMES = ['classic', 'dark', 'forest'];
+    const TOTAL_BOSSES = 6;
+    const THEMES = ['classic', 'dark', 'forest', 'ocean', 'sunset', 'neon', 'pastel', 'retro'];
     const COLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
     const SHAPES = [
         [[1]], 
@@ -29,14 +30,61 @@ document.addEventListener('DOMContentLoaded', () => {
     const FEEDBACK_PHRASES = ["NICE!", "SWEET!", "AWESOME!"];
     
     const BOSS_DATA = [
-        { name: "BLOCK GOLEM", hp: 200, dmgPerLine: 50, atkSpeed: 5 },
-        { name: "PUZZLE WYRM", hp: 350, dmgPerLine: 45, atkSpeed: 4 },
-        { name: "GRID HYDRA", hp: 500, dmgPerLine: 40, atkSpeed: 4 }
+        { 
+            name: "BLOCK GOLEM", 
+            hp: 50, 
+            dmgPerLine: 50, 
+            atkSpeed: 5,
+            theme: "golem",
+            icon: `<svg viewBox="0 0 40 40"><rect x="10" y="12" width="20" height="20" fill="white"/><rect x="8" y="16" width="4" height="4" fill="white"/><rect x="28" y="16" width="4" height="4" fill="white"/><rect x="14" y="20" width="3" height="3" fill="white" opacity="0.6"/><rect x="23" y="20" width="3" height="3" fill="white" opacity="0.6"/></svg>`
+        },
+        { 
+            name: "PUZZLE WYRM", 
+            hp: 50, 
+            dmgPerLine: 45, 
+            atkSpeed: 4,
+            theme: "wyrm",
+            icon: `<svg viewBox="0 0 40 40"><path d="M 20 10 Q 15 15, 12 20 Q 15 25, 20 30 Q 25 25, 28 20 Q 25 15, 20 10" fill="white"/><circle cx="17" cy="18" r="2" fill="white" opacity="0.6"/><circle cx="23" cy="18" r="2" fill="white" opacity="0.6"/><path d="M 18 24 Q 20 26, 22 24" stroke="white" stroke-width="2" fill="none"/></svg>`
+        },
+        { 
+            name: "GRID HYDRA", 
+            hp: 50, 
+            dmgPerLine: 40, 
+            atkSpeed: 4,
+            theme: "hydra",
+            icon: `<svg viewBox="0 0 40 40"><circle cx="20" cy="16" r="8" fill="white"/><circle cx="14" cy="26" r="5" fill="white"/><circle cx="26" cy="26" r="5" fill="white"/><circle cx="18" cy="14" r="1.5" fill="white" opacity="0.6"/><circle cx="22" cy="14" r="1.5" fill="white" opacity="0.6"/></svg>`
+        },
+        {
+            name: "TILE TITAN",
+            hp: 60,
+            dmgPerLine: 40,
+            atkSpeed: 3,
+            theme: "titan",
+            icon: `<svg viewBox="0 0 40 40"><rect x="12" y="8" width="16" height="24" fill="white"/><rect x="10" y="14" width="4" height="4" fill="white"/><rect x="26" y="14" width="4" height="4" fill="white"/><rect x="14" y="18" width="4" height="6" fill="white" opacity="0.6"/><rect x="22" y="18" width="4" height="6" fill="white" opacity="0.6"/></svg>`
+        },
+        {
+            name: "CHAOS CUBE",
+            hp: 70,
+            dmgPerLine: 35,
+            atkSpeed: 3,
+            theme: "chaos",
+            icon: `<svg viewBox="0 0 40 40"><rect x="10" y="10" width="20" height="20" fill="white" transform="rotate(45 20 20)"/><circle cx="20" cy="20" r="4" fill="white" opacity="0.6"/><rect x="15" y="8" width="10" height="2" fill="white"/><rect x="15" y="30" width="10" height="2" fill="white"/></svg>`
+        },
+        {
+            name: "VOID SOVEREIGN",
+            hp: 80,
+            dmgPerLine: 30,
+            atkSpeed: 3,
+            theme: "void",
+            icon: `<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="12" fill="white"/><circle cx="20" cy="20" r="6" fill="white" opacity="0.3"/><path d="M 12 12 L 28 28 M 28 12 L 12 28" stroke="white" stroke-width="2" opacity="0.6"/></svg>`
+        }
     ];
+
 
     // ===== DOM HELPERS =====
     const $ = id => document.getElementById(id);
     const $$ = sel => document.querySelectorAll(sel);
+
 
     const dom = {
         mainMenu: $('main-menu'),
@@ -49,6 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
         modal: $('game-over-modal'),
         score: $('score'),
         highScore: $('high-score'),
+        bestLabel: $('best-label'),
+        bestScoreBox: $('best-score-box'),
         menuHighScore: $('menu-high-score'),
         finalScore: $('final-score'),
         goTitle: $('go-title'),
@@ -56,16 +106,21 @@ document.addEventListener('DOMContentLoaded', () => {
         comboMultiplier: $('combo-multiplier'),
         bossUI: $('boss-ui'),
         bossName: $('boss-name'),
+        bossIcon: $('boss-icon'),
         bossHpBar: $('boss-hp-bar'),
         bossHpText: $('boss-hp-text'),
+        bossProgress: $('boss-progress'),
         startBtns: $$('.mode-btn'),
         menuThemeBtn: $('menu-theme-btn'),
         gameThemeBtn: $('game-theme-btn'),
         backToMenuBtn: $('back-to-menu'),
         restartBtn: $('restart-btn'),
         exitToMenuBtn: $('exit-to-menu'),
-        muteBtns: $$('.mute-btn')
+        muteBtns: $$('.mute-btn'),
+        victoryOverlay: $('victory-overlay'),
+        victoryHpFill: $('victory-hp-fill')
     };
+
 
     // ===== GAME STATE =====
     const state = {
@@ -78,8 +133,10 @@ document.addEventListener('DOMContentLoaded', () => {
         isMuted: localStorage.getItem('better_blocks_muted') === 'true',
         mode: 'classic',
         boss: null,
-        turnCounter: 0
+        turnCounter: 0,
+        isGameOver: false
     };
+
 
     // ===== AUDIO SYSTEM =====
     const audio = {
@@ -94,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
             osc.connect(gain);
             gain.connect(this.ctx.destination);
 
+
             const now = this.ctx.currentTime;
             const configs = {
                 pop: { type: 'sine', freq: 600, vol: 0.08, dur: 0.1 },
@@ -102,11 +160,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 highscore: { type: 'square', freq: 523.25, vol: 0.2, dur: 0.5 },
                 blast: { type: 'sine', freq: 800, freqEnd: 200, vol: 0.4, dur: 0.4 },
                 boss: { type: 'sawtooth', freq: 100, freqEnd: 50, vol: 0.2, dur: 0.2 },
-                victory: { type: 'square', freq: 523.25, freqEnd: 800, vol: 0.3, dur: 0.6 }
+                victory: { type: 'square', freq: 523.25, freqEnd: 800, vol: 0.3, dur: 0.6 },
+                bossDeath: { type: 'sawtooth', freq: 300, freqEnd: 50, vol: 0.5, dur: 1.0 }
             };
+
 
             const cfg = configs[type];
             if (!cfg) return;
+
 
             osc.type = cfg.type;
             osc.frequency.setValueAtTime(cfg.freq, now);
@@ -120,12 +181,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+
     // ===== UI UTILITIES =====
     const ui = {
         toggleScreen(show, hide) {
             hide.classList.add('hidden');
             show.classList.remove('hidden');
         },
+
 
         updateScore(value) {
             state.score = value;
@@ -138,6 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('better_blocks_hs', value);
             }
         },
+
 
         updateComboUI() {
             if (state.comboStreak > 1) {
@@ -156,6 +220,36 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.bossHpBar.style.width = perc + '%';
             dom.bossHpText.textContent = Math.ceil(perc) + '%';
         },
+        
+        updateBossProgress() {
+            if (!state.boss) return;
+            
+            const nodes = document.querySelectorAll('.boss-node');
+            nodes.forEach((node, index) => {
+                node.classList.remove('active', 'defeated');
+                if (index < state.boss.wave - 1) {
+                    node.classList.add('defeated');
+                } else if (index === state.boss.wave - 1) {
+                    node.classList.add('active');
+                }
+            });
+        },
+        
+        applyBossTheme(wave) {
+            if (!wave) {
+                document.body.removeAttribute('data-boss-theme');
+                document.body.removeAttribute('data-boss-blocks');
+                return;
+            }
+            
+            const bossData = BOSS_DATA[wave - 1];
+            document.body.setAttribute('data-boss-theme', bossData.theme);
+            document.body.setAttribute('data-boss-blocks', bossData.theme);
+            
+            // Update boss icon
+            dom.bossIcon.innerHTML = bossData.icon;
+        },
+
 
         showFeedback(text, animClass) {
             dom.feedbackLayer.innerHTML = '';
@@ -166,10 +260,12 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => el.remove(), 800);
         },
 
+
         triggerShake() {
             dom.grid.classList.add('shake-heavy');
             setTimeout(() => dom.grid.classList.remove('shake-heavy'), 400);
         },
+
 
         spawnParticles(cellEl, color) {
             const cellRect = cellEl.getBoundingClientRect();
@@ -177,7 +273,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const x = cellRect.left - containerRect.left + cellRect.width / 2;
             const y = cellRect.top - containerRect.top + cellRect.height / 2;
 
-            for (let i = 0; i < 6; i++) {
+
+            for (let i = 0; i < 8; i++) {
                 const particle = document.createElement('div');
                 particle.className = 'particle';
                 particle.style.backgroundColor = color;
@@ -185,17 +282,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 particle.style.top = `${y}px`;
                 dom.particleLayer.appendChild(particle);
 
+
                 const angle = Math.random() * Math.PI * 2;
-                const velocity = Math.random() * 40 + 20;
+                const velocity = Math.random() * 60 + 30;
                 const tx = Math.cos(angle) * velocity;
                 const ty = Math.sin(angle) * velocity;
+
 
                 particle.animate([
                     { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
                     { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0)`, opacity: 0 }
-                ], { duration: 600, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' }).onfinish = () => particle.remove();
+                ], { duration: 800, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' }).onfinish = () => particle.remove();
             }
         },
+
 
         toggleMute() {
             state.isMuted = !state.isMuted;
@@ -203,12 +303,54 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.muteBtns.forEach(btn => btn.textContent = state.isMuted ? '🔇' : '🔊');
         },
 
+
         applyTheme() {
             const theme = THEMES[state.currentThemeIndex];
             document.body.setAttribute('data-theme', theme);
             dom.gameThemeBtn.textContent = theme.toUpperCase();
+        },
+        
+        // Clear all blocks with confetti-like explosion
+        async clearBoardConfetti() {
+            const cells = Array.from(document.querySelectorAll('.cell.filled'));
+            
+            // Create confetti from each cell
+            cells.forEach((cell, index) => {
+                const color = state.grid[parseInt(cell.dataset.r)][parseInt(cell.dataset.c)];
+                
+                // Stagger the confetti bursts slightly
+                setTimeout(() => {
+                    this.spawnParticles(cell, color);
+                    
+                    // Fade out the cell
+                    cell.animate([
+                        { opacity: 1, transform: 'scale(1)' },
+                        { opacity: 0, transform: 'scale(0.5)' }
+                    ], { duration: 300, easing: 'ease-out' }).onfinish = () => {
+                        const r = parseInt(cell.dataset.r);
+                        const c = parseInt(cell.dataset.c);
+                        state.grid[r][c] = null;
+                        cell.style.backgroundColor = '';
+                        cell.classList.remove('filled', 'boss-junk');
+                        cell.style.opacity = '1';
+                        cell.style.transform = '';
+                    };
+                }, index * 20); // Stagger by 20ms per cell for wave effect
+            });
+            
+            // Play celebration sounds
+            audio.play('blast');
+            setTimeout(() => audio.play('victory'), 200);
+            
+            // Wait for all animations to complete
+            await new Promise(resolve => setTimeout(resolve, cells.length * 20 + 500));
+            
+            // Reset combo
+            state.comboStreak = 0;
+            ui.updateComboUI();
         }
     };
+
 
     // ===== GRID MANAGEMENT =====
     const grid = {
@@ -227,9 +369,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+
         getCell(r, c) {
             return document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
         },
+
 
         canPlace(r, c, matrix) {
             return matrix.every((row, i) => 
@@ -244,13 +388,16 @@ document.addEventListener('DOMContentLoaded', () => {
             );
         },
 
+
         checkLines() {
             const rows = [];
             const cols = [];
 
+
             for (let r = 0; r < GRID_SIZE; r++) {
                 if (state.grid[r].every(v => v !== null)) rows.push(r);
             }
+
 
             for (let c = 0; c < GRID_SIZE; c++) {
                 let full = true;
@@ -260,15 +407,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (full) cols.push(c);
             }
 
+
             const totalLines = rows.length + cols.length;
             if (totalLines === 0) return;
+
 
             state.didClearThisTurn = true;
             state.comboStreak++;
             ui.updateComboUI();
             audio.play('clear');
 
+
             if (totalLines >= 2) ui.triggerShake();
+
 
             // Boss Damage
             if (state.mode === 'boss' && state.boss) {
@@ -279,22 +430,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 ui.updateBossUI();
                 
                 if (state.boss.hp <= 0) {
-                    this.nextBossWave();
+                    this.defeatBoss();
+                    return;
                 }
             }
+
 
             const cellsToRemove = new Set();
             rows.forEach(r => { for (let c = 0; c < GRID_SIZE; c++) cellsToRemove.add(`${r},${c}`); });
             cols.forEach(c => { for (let r = 0; r < GRID_SIZE; r++) cellsToRemove.add(`${r},${c}`); });
 
+
             const lineBonus = totalLines > 1 ? totalLines : 1;
             const points = (cellsToRemove.size * 10) * lineBonus * state.comboStreak;
             ui.updateScore(state.score + points);
+
 
             const feedbackText = state.comboStreak > 2 
                 ? `STREAK x${state.comboStreak}!` 
                 : totalLines > 1 ? `COMBO x${totalLines}!` : FEEDBACK_PHRASES[Math.floor(Math.random() * FEEDBACK_PHRASES.length)];
             ui.showFeedback(feedbackText, "anim-blast");
+
 
             cellsToRemove.forEach(key => {
                 const [r, c] = key.split(',').map(Number);
@@ -307,13 +463,43 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         },
         
-        nextBossWave() {
+        async defeatBoss() {
+            // Pause game logic
+            state.isGameOver = true; 
+            
+            // Play victory sound
+            audio.play('victory');
+            
+            // Show overlay
+            dom.victoryOverlay.classList.add('active');
+            
+            // Animate HP Bar draining visually in overlay
+            setTimeout(() => {
+                dom.victoryHpFill.style.width = '0%';
+            }, 100);
+
+            // Wait for cutscene
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Clear the entire board with confetti effect
+            await ui.clearBoardConfetti();
+            
+            // Reset visual
+            dom.victoryOverlay.classList.remove('active');
+            dom.victoryHpFill.style.width = '100%';
+            
+            // Spawn new shapes
+            shapes.spawn();
+            
+            // Next Wave Logic
             state.boss.wave++;
-            if (state.boss.wave > BOSS_DATA.length) {
-                audio.play('victory');
-                dom.goTitle.textContent = "VICTORY!";
+            if (state.boss.wave > TOTAL_BOSSES) {
+                // Beat the whole game
+                dom.goTitle.textContent = "YOU WIN!";
                 dom.finalScore.textContent = state.score;
                 dom.modal.classList.remove('hidden');
+                state.isGameOver = false;
+                ui.applyBossTheme(null);
                 return;
             }
             
@@ -322,11 +508,20 @@ document.addEventListener('DOMContentLoaded', () => {
             state.boss.maxHp = nextData.hp;
             state.boss.turnCounter = 0;
             dom.bossName.textContent = nextData.name;
+            dom.highScore.textContent = state.boss.wave + '/' + TOTAL_BOSSES;
+            
+            // Apply new boss theme
+            ui.applyBossTheme(state.boss.wave);
             ui.updateBossUI();
+            ui.updateBossProgress();
             
             ui.showFeedback("NEXT WAVE!", "anim-blast");
+            
+            // Resume Game
+            state.isGameOver = false;
         }
     };
+
 
     // ===== SHAPE AVAILABILITY =====
     function canShapeFitAnywhere(matrix) {
@@ -338,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return false;
     }
 
+
     function updateShapeAvailability() {
         const shapesLeft = Array.from(dom.blockContainer.children);
         shapesLeft.forEach(shapeEl => {
@@ -346,6 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
             shapeEl.classList.toggle('disabled', !canFit);
         });
     }
+
 
     // ===== PREVIEW LOGIC =====
     function computeLinesForPlacement(r, c, matrix) {
@@ -359,6 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+
         const rows = [], cols = [];
         for (let rr = 0; rr < GRID_SIZE; rr++) if (tempGrid[rr].every(v => v !== null)) rows.push(rr);
         for (let cc = 0; cc < GRID_SIZE; cc++) {
@@ -369,9 +567,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return { rows, cols };
     }
 
+
     function clearPreviewLines() { 
         document.querySelectorAll('.cell.will-clear').forEach(c => c.classList.remove('will-clear')); 
     }
+
 
     function highlightPreviewLines(rows, cols) {
         clearPreviewLines();
@@ -389,9 +589,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
     // ===== SHAPE MANAGEMENT =====
     const shapes = {
         dragState: null,
+
 
         spawn() {
             dom.blockContainer.innerHTML = '';
@@ -436,10 +638,12 @@ document.addEventListener('DOMContentLoaded', () => {
             updateShapeAvailability();
         },
 
+
         onDragStart(e, element) {
             e.preventDefault();
             const matrix = JSON.parse(element.dataset.matrix);
             if (!canShapeFitAnywhere(matrix)) return;
+
 
             const color = element.dataset.color;
             const mirror = element.cloneNode(true);
@@ -459,10 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (child.style.opacity !== '0') child.style.backgroundColor = color;
             });
 
+
             document.body.appendChild(mirror);
             element.style.opacity = '0';
 
+
             state.didClearThisTurn = false;
+
 
             this.dragState = { 
                 source: element, 
@@ -475,6 +682,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.onDragMove(e);
         },
 
+
         onDragMove(e) {
             if (!this.dragState) return;
             
@@ -484,6 +692,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { mirror, matrix, color, offsetX, offsetY } = this.dragState;
             mirror.style.left = (x - offsetX) + 'px';
             mirror.style.top = (y - offsetY) + 'px';
+
 
             document.querySelectorAll('.ghost').forEach(c => { 
                 c.classList.remove('ghost'); 
@@ -497,6 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const relY = (y - gridRect.top) - (mirror.offsetHeight / 2) + (cellSize / 4) - 70;
             const col = Math.round(relX / cellSize);
             const row = Math.round(relY / cellSize);
+
 
             if (grid.canPlace(row, col, matrix)) {
                 matrix.forEach((rowArr, i) => {
@@ -518,6 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+
         onDragEnd(e) {
             if (!this.dragState) return;
             
@@ -529,7 +740,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             clearPreviewLines();
 
-            if (target) {
+
+            if (target && !state.isGameOver) {
                 audio.play('pop');
                 source.remove();
                 
@@ -552,8 +764,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 grid.checkLines();
 
+
                 // Boss Logic
-                if (state.mode === 'boss' && state.boss) {
+                if (state.mode === 'boss' && state.boss && !state.isGameOver) {
                    const bossData = BOSS_DATA[state.boss.wave - 1];
                    state.boss.turnCounter++;
                    
@@ -564,16 +777,19 @@ document.addEventListener('DOMContentLoaded', () => {
                    }
                 }
 
+
                 if (!state.didClearThisTurn) {
                     state.comboStreak = 0;
                     ui.updateComboUI();
                 }
+
 
                 if (dom.blockContainer.children.length === 0) {
                     this.spawn();
                 } else {
                     updateShapeAvailability();
                 }
+
 
                 game.checkGameOver();
             } else {
@@ -584,6 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+
     // ===== GAME CONTROL =====
     const game = {
         start(mode) {
@@ -593,15 +810,21 @@ document.addEventListener('DOMContentLoaded', () => {
             this.reset();
         },
 
+
         reset() {
             grid.create();
             shapes.spawn();
             state.score = 0;
             state.comboStreak = 0;
             state.turnCounter = 0;
+            state.isGameOver = false;
             
             if (state.mode === 'boss') {
                 dom.bossUI.style.display = 'block';
+                dom.bossProgress.classList.remove('hidden');
+                dom.gridWrapper.classList.add('boss-mode');
+                dom.bestLabel.textContent = 'Wave';
+                dom.highScore.textContent = '1/' + TOTAL_BOSSES;
                 state.boss = { 
                     hp: BOSS_DATA[0].hp, 
                     maxHp: BOSS_DATA[0].hp, 
@@ -609,11 +832,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     turnCounter: 0 
                 };
                 dom.bossName.textContent = BOSS_DATA[0].name;
+                ui.applyBossTheme(1);
                 ui.updateBossUI();
+                ui.updateBossProgress();
             } else {
                 dom.bossUI.style.display = 'none';
+                dom.bossProgress.classList.add('hidden');
+                dom.gridWrapper.classList.remove('boss-mode');
+                dom.bestLabel.textContent = 'Best';
+                dom.highScore.textContent = state.highScore;
                 state.boss = null;
+                ui.applyBossTheme(null);
             }
+
 
             ui.updateComboUI();
             ui.updateScore(0);
@@ -621,11 +852,14 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.grid.classList.remove('combo-active');
         },
 
+
         showMenu() {
             ui.toggleScreen(dom.mainMenu, dom.gameScreen);
             dom.modal.classList.add('hidden');
             dom.menuHighScore.textContent = state.highScore;
+            ui.applyBossTheme(null);
         },
+
 
         bossAttack() {
             audio.play('boss');
@@ -654,12 +888,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+
         checkGameOver() {
+            if (state.isGameOver) return;
+
             const shapesLeft = Array.from(dom.blockContainer.children);
             const hasPossibleMove = shapesLeft.some(shapeEl => {
                 const matrix = JSON.parse(shapeEl.dataset.matrix);
                 return canShapeFitAnywhere(matrix);
             });
+
 
             if (!hasPossibleMove) {
                 audio.play('gameover');
@@ -672,6 +910,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+
     // ===== INITIALIZATION =====
     function init() {
         dom.menuHighScore.textContent = state.highScore;
@@ -679,6 +918,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ui.applyTheme();
         dom.muteBtns.forEach(btn => btn.textContent = state.isMuted ? '🔇' : '🔊');
     }
+
 
     // ===== EVENT LISTENERS =====
     dom.startBtns.forEach(btn => {
@@ -700,8 +940,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+
     window.addEventListener('pointermove', (e) => shapes.onDragMove(e));
     window.addEventListener('pointerup', (e) => shapes.onDragEnd(e));
+
 
     init();
 });

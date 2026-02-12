@@ -52,6 +52,172 @@
     --danger: #bc6c25;
 }
 
+[data-theme="ocean"] {
+    --bg-color: #e0f7fa;
+    --text-color: #004d40;
+    --grid-bg: #b2dfdb;
+    --cell-bg: #80cbc4;
+    --accent-color: #00796b;
+    --modal-bg: rgba(224, 247, 250, 0.98);
+    --c1: #26c6da;
+    --c2: #00acc1;
+    --c3: #0097a7;
+    --c4: #00838f;
+    --c5: #006064;
+    --glow-color: #26c6da;
+    --danger: #d84315;
+}
+
+[data-theme="sunset"] {
+    --bg-color: #fff3e0;
+    --text-color: #bf360c;
+    --grid-bg: #ffe0b2;
+    --cell-bg: #ffcc80;
+    --accent-color: #f4511e;
+    --modal-bg: rgba(255, 243, 224, 0.98);
+    --c1: #ff7043;
+    --c2: #ff5722;
+    --c3: #ffab40;
+    --c4: #ff6f00;
+    --c5: #e65100;
+    --glow-color: #ffab40;
+    --danger: #bf360c;
+}
+
+[data-theme="neon"] {
+    --bg-color: #0a0e27;
+    --text-color: #00ffff;
+    --grid-bg: #1a1f3a;
+    --cell-bg: #2d3561;
+    --accent-color: #ff00ff;
+    --modal-bg: rgba(10, 14, 39, 0.98);
+    --c1: #00ffff;
+    --c2: #ff00ff;
+    --c3: #ffff00;
+    --c4: #00ff00;
+    --c5: #ff0080;
+    --glow-color: #00ffff;
+    --danger: #ff0080;
+}
+
+[data-theme="pastel"] {
+    --bg-color: #fce4ec;
+    --text-color: #880e4f;
+    --grid-bg: #f8bbd0;
+    --cell-bg: #f48fb1;
+    --accent-color: #c2185b;
+    --modal-bg: rgba(252, 228, 236, 0.98);
+    --c1: #f06292;
+    --c2: #ba68c8;
+    --c3: #9575cd;
+    --c4: #7986cb;
+    --c5: #64b5f6;
+    --glow-color: #f06292;
+    --danger: #c2185b;
+}
+
+[data-theme="retro"] {
+    --bg-color: #fdf6e3;
+    --text-color: #657b83;
+    --grid-bg: #eee8d5;
+    --cell-bg: #93a1a1;
+    --accent-color: #268bd2;
+    --modal-bg: rgba(253, 246, 227, 0.98);
+    --c1: #dc322f;
+    --c2: #cb4b16;
+    --c3: #859900;
+    --c4: #268bd2;
+    --c5: #6c71c4;
+    --glow-color: #b58900;
+    --danger: #dc322f;
+}
+
+/* Boss Theme Overrides - only affect UI colors, NOT block colors */
+body[data-boss-theme="golem"] {
+    --accent-color: #8b4513;
+    --danger: #a0522d;
+    --glow-color: #daa520;
+}
+
+body[data-boss-theme="wyrm"] {
+    --accent-color: #4a0e4e;
+    --danger: #8b008b;
+    --glow-color: #da70d6;
+}
+
+body[data-boss-theme="hydra"] {
+    --accent-color: #006064;
+    --danger: #00838f;
+    --glow-color: #00bcd4;
+}
+
+body[data-boss-theme="titan"] {
+    --accent-color: #e65100;
+    --danger: #bf360c;
+    --glow-color: #ff6f00;
+}
+
+body[data-boss-theme="chaos"] {
+    --accent-color: #c51162;
+    --danger: #880e4f;
+    --glow-color: #f50057;
+}
+
+body[data-boss-theme="void"] {
+    --accent-color: #311b92;
+    --danger: #1a237e;
+    --glow-color: #651fff;
+}
+
+/* Boss block colors - applied separately */
+body[data-boss-blocks="golem"] {
+    --c1: #d2691e;
+    --c2: #cd853f;
+    --c3: #daa520;
+    --c4: #8b4513;
+    --c5: #a0522d;
+}
+
+body[data-boss-blocks="wyrm"] {
+    --c1: #9370db;
+    --c2: #ba55d3;
+    --c3: #da70d6;
+    --c4: #8b008b;
+    --c5: #4a0e4e;
+}
+
+body[data-boss-blocks="hydra"] {
+    --c1: #00bcd4;
+    --c2: #26c6da;
+    --c3: #00acc1;
+    --c4: #00838f;
+    --c5: #006064;
+}
+
+body[data-boss-blocks="titan"] {
+    --c1: #ff6f00;
+    --c2: #ff8f00;
+    --c3: #ffa726;
+    --c4: #e65100;
+    --c5: #bf360c;
+}
+
+body[data-boss-blocks="chaos"] {
+    --c1: #f50057;
+    --c2: #ff4081;
+    --c3: #e91e63;
+    --c4: #c51162;
+    --c5: #880e4f;
+}
+
+body[data-boss-blocks="void"] {
+    --c1: #651fff;
+    --c2: #7c4dff;
+    --c3: #536dfe;
+    --c4: #311b92;
+    --c5: #1a237e;
+}
+
 /* Base Styles */
 * { 
     box-sizing: border-box; 
@@ -69,7 +235,7 @@ body {
     height: 100vh; 
     width: 100vw; 
     overflow: hidden; 
-    transition: background-color 0.3s; 
+    transition: background-color 0.3s, --accent-color 0.5s, --danger 0.5s; 
 }
 
 .screen { 
@@ -90,7 +256,7 @@ body {
     transform: translateY(20px); 
 }
 
-/* Menu */
+/* Menu Styles */
 .menu-header-controls { 
     position: absolute; 
     top: 20px; 
@@ -221,9 +387,34 @@ body {
 .boss-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 0.8rem;
     font-weight: 700;
     margin-bottom: 4px;
+}
+
+.boss-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.boss-icon {
+    width: 24px;
+    height: 24px;
+    background: var(--danger);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: background-color 0.5s;
+}
+
+.boss-icon svg {
+    width: 18px;
+    height: 18px;
+    fill: white;
 }
 
 .hp-bar-bg {
@@ -238,7 +429,131 @@ body {
     height: 100%;
     background: var(--danger);
     width: 100%;
-    transition: width 0.3s;
+    transition: width 0.3s, background-color 0.5s;
+}
+
+/* Boss Progress Tracker */
+.main-game-area {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    width: 100%;
+    position: relative;
+}
+
+.boss-progress {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    background: var(--grid-bg);
+    border-radius: 12px;
+    min-width: 52px;
+    transition: opacity 0.3s;
+}
+
+.boss-progress.hidden {
+    display: none;
+}
+
+.boss-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+}
+
+.boss-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--cell-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid transparent;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.boss-avatar svg {
+    width: 24px;
+    height: 24px;
+    color: var(--text-color);
+    opacity: 0.4;
+}
+
+.boss-node[data-boss="0"] .boss-avatar {
+    background: linear-gradient(135deg, #8b4513, #a0522d);
+}
+
+.boss-node[data-boss="1"] .boss-avatar {
+    background: linear-gradient(135deg, #4a0e4e, #8b008b);
+}
+
+.boss-node[data-boss="2"] .boss-avatar {
+    background: linear-gradient(135deg, #006064, #00838f);
+}
+
+.boss-node[data-boss="3"] .boss-avatar {
+    background: linear-gradient(135deg, #e65100, #bf360c);
+}
+
+.boss-node[data-boss="4"] .boss-avatar {
+    background: linear-gradient(135deg, #c51162, #880e4f);
+}
+
+.boss-node[data-boss="5"] .boss-avatar {
+    background: linear-gradient(135deg, #311b92, #1a237e);
+}
+
+.boss-node[data-boss="0"] .boss-avatar svg,
+.boss-node[data-boss="1"] .boss-avatar svg,
+.boss-node[data-boss="2"] .boss-avatar svg,
+.boss-node[data-boss="3"] .boss-avatar svg,
+.boss-node[data-boss="4"] .boss-avatar svg,
+.boss-node[data-boss="5"] .boss-avatar svg {
+    color: white;
+    opacity: 0.9;
+}
+
+.boss-node.active .boss-avatar {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 12px var(--glow-color);
+    animation: bossPulse 2s ease-in-out infinite;
+}
+
+.boss-node.defeated .boss-avatar {
+    opacity: 0.4;
+    filter: grayscale(1);
+}
+
+.boss-node.defeated .boss-avatar::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: var(--accent-color);
+    font-weight: 900;
+}
+
+@keyframes bossPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.boss-connector {
+    width: 3px;
+    height: 8px;
+    background: var(--cell-bg);
+    border-radius: 2px;
 }
 
 /* Score Display */
@@ -265,6 +580,7 @@ body {
     flex-direction: column; 
     align-items: center; 
     flex: 1; 
+    transition: background-color 0.5s;
 }
 
 .score-box.best { 
@@ -297,7 +613,7 @@ body {
 /* Game Layout */
 .game-container { 
     width: 100%; 
-    max-width: 450px; 
+    max-width: 500px; 
     height: 100%; 
     padding: 15px; 
     display: flex; 
@@ -313,6 +629,10 @@ body {
     align-items: center; 
     flex-grow: 1; 
     z-index: 1; 
+}
+
+.grid-wrapper.boss-mode {
+    margin-right: 35px; /* Reduced offset for boss progress tracker */
 }
 
 /* Grid */
@@ -333,7 +653,7 @@ body {
     background-color: var(--cell-bg); 
     border-radius: var(--cell-radius); 
     position: relative; 
-    transition: background-color 0.2s; 
+    transition: background-color 0.2s, transform 0.2s; 
 }
 
 .cell.filled { 
@@ -394,9 +714,9 @@ body {
 
 .particle { 
     position: absolute; 
-    width: 6px; 
-    height: 6px; 
-    border-radius: 2px; 
+    width: 8px; 
+    height: 8px; 
+    border-radius: 50%; 
     pointer-events: none; 
 }
 
@@ -557,4 +877,75 @@ body {
     font-size: 2.5rem; 
     margin: 5px 0; 
     color: var(--accent-color);
+}
+
+/* Victory Cutscene Overlay */
+#victory-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 5000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s;
+}
+
+#victory-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.victory-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.victory-text {
+    font-size: 3rem;
+    font-weight: 900;
+    color: var(--accent-color);
+    text-shadow: 0 0 20px var(--glow-color);
+    transform: scale(0.5);
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#victory-overlay.active .victory-text {
+    transform: scale(1.2);
+}
+
+.victory-hp-container {
+    width: 300px;
+    max-width: 80vw;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.5s;
+}
+
+#victory-overlay.active .victory-hp-container {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.victory-hp-bar {
+    height: 20px;
+    background: var(--cell-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.victory-hp-fill {
+    height: 100%;
+    background: var(--danger);
+    width: 100%;
+    transition: width 1.5s cubic-bezier(0.25, 1, 0.5, 1);
 }
