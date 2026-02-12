@@ -4,7 +4,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const THEMES = ['classic', 'dark', 'forest'];
     const COLORS = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)'];
     const SHAPES = [
-        // Single & Lines
         [[1]], 
         [[1,1]], 
         [[1,1,1]], 
@@ -13,26 +12,27 @@ document.addEventListener('DOMContentLoaded', () => {
         [[1],[1]], 
         [[1],[1],[1]],
         [[1],[1],[1],[1]],
-        // Squares
         [[1,1],[1,1]], 
-        [[1,1,1],[1,1,1],[1,1,1]], // 3x3
-        // L shapes
+        [[1,1,1],[1,1,1],[1,1,1]],
         [[1,0],[1,0],[1,1]], 
         [[1,1],[1,0]], 
         [[0,1],[0,1],[1,1]],
         [[1,0],[1,1]],
         [[1,1,1],[1,0,0]],
         [[1,1,1],[0,0,1]],
-        // T shapes
         [[1,1,1],[0,1,0]], 
         [[0,1],[1,1],[0,1]],
-        // Z shapes
         [[1,1,0],[0,1,1]],
         [[0,1,1],[1,1,0]],
-        // Plus
         [[0,1,0],[1,1,1],[0,1,0]]
     ];
     const FEEDBACK_PHRASES = ["NICE!", "SWEET!", "AWESOME!"];
+    
+    const BOSS_DATA = [
+        { name: "BLOCK GOLEM", hp: 200, dmgPerLine: 50, atkSpeed: 5 },
+        { name: "PUZZLE WYRM", hp: 350, dmgPerLine: 45, atkSpeed: 4 },
+        { name: "GRID HYDRA", hp: 500, dmgPerLine: 40, atkSpeed: 4 }
+    ];
 
     // ===== DOM HELPERS =====
     const $ = id => document.getElementById(id);
@@ -54,7 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
         goTitle: $('go-title'),
         comboBox: $('combo-box'),
         comboMultiplier: $('combo-multiplier'),
-        startBtn: $('start-game-btn'),
+        bossUI: $('boss-ui'),
+        bossName: $('boss-name'),
+        bossHpBar: $('boss-hp-bar'),
+        bossHpText: $('boss-hp-text'),
+        startBtns: $$('.mode-btn'),
         menuThemeBtn: $('menu-theme-btn'),
         gameThemeBtn: $('game-theme-btn'),
         backToMenuBtn: $('back-to-menu'),
@@ -71,7 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
         comboStreak: 0,
         didClearThisTurn: false,
         currentThemeIndex: 0,
-        isMuted: localStorage.getItem('better_blocks_muted') === 'true'
+        isMuted: localStorage.getItem('better_blocks_muted') === 'true',
+        mode: 'classic',
+        boss: null,
+        turnCounter: 0
     };
 
     // ===== AUDIO SYSTEM =====
@@ -92,7 +99,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 pop: { type: 'sine', freq: 600, vol: 0.08, dur: 0.1 },
                 clear: { type: 'sawtooth', freq: 400, freqEnd: 100, vol: 0.3, dur: 0.3 },
                 gameover: { type: 'triangle', freq: 200, freqEnd: 50, vol: 0.3, dur: 0.8 },
-                highscore: { type: 'square', freq: 523.25, vol: 0.2, dur: 0.5 }
+                highscore: { type: 'square', freq: 523.25, vol: 0.2, dur: 0.5 },
+                blast: { type: 'sine', freq: 800, freqEnd: 200, vol: 0.4, dur: 0.4 },
+                boss: { type: 'sawtooth', freq: 100, freqEnd: 50, vol: 0.2, dur: 0.2 },
+                victory: { type: 'square', freq: 523.25, freqEnd: 800, vol: 0.3, dur: 0.6 }
             };
 
             const cfg = configs[type];
@@ -100,9 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             osc.type = cfg.type;
             osc.frequency.setValueAtTime(cfg.freq, now);
-            if (cfg.freqEnd) {
-                osc.frequency.exponentialRampToValueAtTime(cfg.freqEnd, now + cfg.dur);
-            }
+            if (cfg.freqEnd) osc.frequency.exponentialRampToValueAtTime(cfg.freqEnd, now + cfg.dur);
             
             gain.gain.setValueAtTime(cfg.vol, now);
             gain.gain.exponentialRampToValueAtTime(0.01, now + cfg.dur);
@@ -141,6 +149,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 dom.grid.classList.remove('combo-active');
             }
         },
+        
+        updateBossUI() {
+            if (!state.boss) return;
+            const perc = Math.max(0, (state.boss.hp / state.boss.maxHp) * 100);
+            dom.bossHpBar.style.width = perc + '%';
+            dom.bossHpText.textContent = Math.ceil(perc) + '%';
+        },
 
         showFeedback(text, animClass) {
             dom.feedbackLayer.innerHTML = '';
@@ -178,10 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 particle.animate([
                     { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
                     { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(0)`, opacity: 0 }
-                ], { 
-                    duration: 600, 
-                    easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' 
-                }).onfinish = () => particle.remove();
+                ], { duration: 600, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)' }).onfinish = () => particle.remove();
             }
         },
 
@@ -236,19 +248,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const rows = [];
             const cols = [];
 
-            // Check rows
             for (let r = 0; r < GRID_SIZE; r++) {
                 if (state.grid[r].every(v => v !== null)) rows.push(r);
             }
 
-            // Check columns
             for (let c = 0; c < GRID_SIZE; c++) {
                 let full = true;
                 for (let r = 0; r < GRID_SIZE; r++) {
-                    if (state.grid[r][c] === null) {
-                        full = false;
-                        break;
-                    }
+                    if (state.grid[r][c] === null) { full = false; break; }
                 }
                 if (full) cols.push(c);
             }
@@ -263,33 +270,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (totalLines >= 2) ui.triggerShake();
 
-            // Collect cells to clear
-            const cellsToRemove = new Set();
-            rows.forEach(r => {
-                for (let c = 0; c < GRID_SIZE; c++) {
-                    cellsToRemove.add(`${r},${c}`);
+            // Boss Damage
+            if (state.mode === 'boss' && state.boss) {
+                const bossData = BOSS_DATA[state.boss.wave - 1];
+                const dmg = totalLines * bossData.dmgPerLine;
+                state.boss.hp -= dmg;
+                ui.showFeedback(`-${dmg} DMG!`, "anim-damage");
+                ui.updateBossUI();
+                
+                if (state.boss.hp <= 0) {
+                    this.nextBossWave();
                 }
-            });
-            cols.forEach(c => {
-                for (let r = 0; r < GRID_SIZE; r++) {
-                    cellsToRemove.add(`${r},${c}`);
-                }
-            });
+            }
 
-            // Calculate score
+            const cellsToRemove = new Set();
+            rows.forEach(r => { for (let c = 0; c < GRID_SIZE; c++) cellsToRemove.add(`${r},${c}`); });
+            cols.forEach(c => { for (let r = 0; r < GRID_SIZE; r++) cellsToRemove.add(`${r},${c}`); });
+
             const lineBonus = totalLines > 1 ? totalLines : 1;
             const points = (cellsToRemove.size * 10) * lineBonus * state.comboStreak;
             ui.updateScore(state.score + points);
 
-            // Show feedback
             const feedbackText = state.comboStreak > 2 
                 ? `STREAK x${state.comboStreak}!` 
-                : totalLines > 1 
-                    ? `COMBO x${totalLines}!` 
-                    : FEEDBACK_PHRASES[Math.floor(Math.random() * FEEDBACK_PHRASES.length)];
+                : totalLines > 1 ? `COMBO x${totalLines}!` : FEEDBACK_PHRASES[Math.floor(Math.random() * FEEDBACK_PHRASES.length)];
             ui.showFeedback(feedbackText, "anim-blast");
 
-            // Remove cells
             cellsToRemove.forEach(key => {
                 const [r, c] = key.split(',').map(Number);
                 const color = state.grid[r][c];
@@ -297,8 +303,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 const cell = this.getCell(r, c);
                 ui.spawnParticles(cell, color);
                 cell.style.backgroundColor = '';
-                cell.classList.remove('filled');
+                cell.classList.remove('filled', 'boss-junk');
             });
+        },
+        
+        nextBossWave() {
+            state.boss.wave++;
+            if (state.boss.wave > BOSS_DATA.length) {
+                audio.play('victory');
+                dom.goTitle.textContent = "VICTORY!";
+                dom.finalScore.textContent = state.score;
+                dom.modal.classList.remove('hidden');
+                return;
+            }
+            
+            const nextData = BOSS_DATA[state.boss.wave - 1];
+            state.boss.hp = nextData.hp;
+            state.boss.maxHp = nextData.hp;
+            state.boss.turnCounter = 0;
+            dom.bossName.textContent = nextData.name;
+            ui.updateBossUI();
+            
+            ui.showFeedback("NEXT WAVE!", "anim-blast");
         }
     };
 
@@ -321,66 +347,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ===== PREVIEW: WHICH LINES WILL POP =====
+    // ===== PREVIEW LOGIC =====
     function computeLinesForPlacement(r, c, matrix) {
-        // Copy grid
         const tempGrid = state.grid.map(row => row.slice());
-
-        // Apply hypothetical placement
         matrix.forEach((rowArr, i) => {
             rowArr.forEach((val, j) => {
                 if (val) {
-                    const tr = r + i;
-                    const tc = c + j;
-                    if (tr >= 0 && tr < GRID_SIZE && tc >= 0 && tc < GRID_SIZE) {
-                        tempGrid[tr][tc] = true;
-                    }
+                    const tr = r + i, tc = c + j;
+                    if (tr >= 0 && tr < GRID_SIZE && tc >= 0 && tc < GRID_SIZE) tempGrid[tr][tc] = true;
                 }
             });
         });
 
-        const rows = [];
-        const cols = [];
-
-        // Check rows
-        for (let rr = 0; rr < GRID_SIZE; rr++) {
-            if (tempGrid[rr].every(v => v !== null)) rows.push(rr);
-        }
-
-        // Check columns
+        const rows = [], cols = [];
+        for (let rr = 0; rr < GRID_SIZE; rr++) if (tempGrid[rr].every(v => v !== null)) rows.push(rr);
         for (let cc = 0; cc < GRID_SIZE; cc++) {
             let full = true;
-            for (let rr = 0; rr < GRID_SIZE; rr++) {
-                if (tempGrid[rr][cc] === null) {
-                    full = false;
-                    break;
-                }
-            }
+            for (let rr = 0; rr < GRID_SIZE; rr++) if (tempGrid[rr][cc] === null) { full = false; break; }
             if (full) cols.push(cc);
         }
-
         return { rows, cols };
     }
 
-    function clearPreviewLines() {
-        document.querySelectorAll('.cell.will-clear').forEach(cell => {
-            cell.classList.remove('will-clear');
-        });
+    function clearPreviewLines() { 
+        document.querySelectorAll('.cell.will-clear').forEach(c => c.classList.remove('will-clear')); 
     }
 
     function highlightPreviewLines(rows, cols) {
         clearPreviewLines();
-        rows.forEach(r => {
-            for (let c = 0; c < GRID_SIZE; c++) {
-                const cell = grid.getCell(r, c);
-                if (cell) cell.classList.add('will-clear');
-            }
+        rows.forEach(r => { 
+            for (let c = 0; c < GRID_SIZE; c++) { 
+                const cell = grid.getCell(r, c); 
+                if(cell) cell.classList.add('will-clear'); 
+            } 
         });
-        cols.forEach(c => {
-            for (let r = 0; r < GRID_SIZE; r++) {
-                const cell = grid.getCell(r, c);
-                if (cell) cell.classList.add('will-clear');
-            }
+        cols.forEach(c => { 
+            for (let r = 0; r < GRID_SIZE; r++) { 
+                const cell = grid.getCell(r, c); 
+                if(cell) cell.classList.add('will-clear'); 
+            } 
         });
     }
 
@@ -391,43 +396,52 @@ document.addEventListener('DOMContentLoaded', () => {
         spawn() {
             dom.blockContainer.innerHTML = '';
             
-            for (let i = 0; i < 3; i++) {
-                const matrix = SHAPES[Math.floor(Math.random() * SHAPES.length)];
-                const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            let attempts = 0;
+            let hasPlaceableShape = false;
+            
+            // Keep generating until we have at least one placeable shape
+            while (!hasPlaceableShape && attempts < 100) {
+                dom.blockContainer.innerHTML = '';
+                hasPlaceableShape = false;
                 
-                const wrapper = document.createElement('div');
-                wrapper.className = 'shape';
-                wrapper.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
-                wrapper.dataset.matrix = JSON.stringify(matrix);
-                wrapper.dataset.color = color;
-                
-                matrix.forEach(row => {
-                    row.forEach(val => {
-                        const block = document.createElement('div');
-                        if (val) {
-                            block.style.backgroundColor = color;
-                        } else {
-                            block.style.opacity = '0';
-                        }
-                        wrapper.appendChild(block);
+                for (let i = 0; i < 3; i++) {
+                    const matrix = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                    
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'shape';
+                    wrapper.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
+                    wrapper.dataset.matrix = JSON.stringify(matrix);
+                    wrapper.dataset.color = color;
+                    
+                    matrix.forEach(row => {
+                        row.forEach(val => {
+                            const block = document.createElement('div');
+                            if (val) block.style.backgroundColor = color;
+                            else block.style.opacity = '0';
+                            wrapper.appendChild(block);
+                        });
                     });
-                });
-                
-                wrapper.addEventListener('pointerdown', (e) => this.onDragStart(e, wrapper));
-                dom.blockContainer.appendChild(wrapper);
+                    
+                    wrapper.addEventListener('pointerdown', (e) => this.onDragStart(e, wrapper));
+                    dom.blockContainer.appendChild(wrapper);
+                    
+                    if (canShapeFitAnywhere(matrix)) {
+                        hasPlaceableShape = true;
+                    }
+                }
+                attempts++;
             }
-
+            
             updateShapeAvailability();
         },
 
         onDragStart(e, element) {
             e.preventDefault();
             const matrix = JSON.parse(element.dataset.matrix);
-            const color = element.dataset.color;
-
-            // If shape has no possible placement, ignore drag
             if (!canShapeFitAnywhere(matrix)) return;
-            
+
+            const color = element.dataset.color;
             const mirror = element.cloneNode(true);
             mirror.className = 'dragging-mirror';
             mirror.style.gridTemplateColumns = `repeat(${matrix[0].length}, 1fr)`;
@@ -442,26 +456,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 child.style.height = gridCellSize + 'px';
                 child.style.borderRadius = '3px';
                 child.style.boxShadow = 'inset 0 -2px 0 rgba(0,0,0,0.2)';
-                if (child.style.opacity !== '0') {
-                    child.style.backgroundColor = color;
-                }
+                if (child.style.opacity !== '0') child.style.backgroundColor = color;
             });
 
             document.body.appendChild(mirror);
             element.style.opacity = '0';
 
-            // Reset clear flag for this move
             state.didClearThisTurn = false;
 
-            this.dragState = {
-                source: element,
-                mirror,
-                matrix,
-                color,
-                offsetX: width / 2,
-                offsetY: (gridCellSize * matrix.length) / 2 + 70
+            this.dragState = { 
+                source: element, 
+                mirror, 
+                matrix, 
+                color, 
+                offsetX: width / 2, 
+                offsetY: (gridCellSize * matrix.length) / 2 + 70 
             };
-
             this.onDragMove(e);
         },
 
@@ -475,42 +485,34 @@ document.addEventListener('DOMContentLoaded', () => {
             mirror.style.left = (x - offsetX) + 'px';
             mirror.style.top = (y - offsetY) + 'px';
 
-            // Clear any previous ghost / preview
-            document.querySelectorAll('.ghost').forEach(c => {
-                c.classList.remove('ghost');
-                c.style.removeProperty('--ghost-color');
+            document.querySelectorAll('.ghost').forEach(c => { 
+                c.classList.remove('ghost'); 
+                c.style.removeProperty('--ghost-color'); 
             });
             clearPreviewLines();
             
             const gridRect = dom.grid.getBoundingClientRect();
             const cellSize = document.querySelector('.cell').offsetWidth + 4;
-
             const relX = (x - gridRect.left) - (mirror.offsetWidth / 2) + (cellSize / 4);
             const relY = (y - gridRect.top) - (mirror.offsetHeight / 2) + (cellSize / 4) - 70;
-
             const col = Math.round(relX / cellSize);
             const row = Math.round(relY / cellSize);
 
             if (grid.canPlace(row, col, matrix)) {
-                // Ghost cells
                 matrix.forEach((rowArr, i) => {
                     rowArr.forEach((val, j) => {
                         if (val) {
                             const cell = grid.getCell(row + i, col + j);
-                            if (cell) {
-                                cell.classList.add('ghost');
-                                cell.style.setProperty('--ghost-color', color);
+                            if (cell) { 
+                                cell.classList.add('ghost'); 
+                                cell.style.setProperty('--ghost-color', color); 
                             }
                         }
                     });
                 });
                 this.dragState.target = { r: row, c: col };
-
-                // Preview lines that would be cleared
                 const { rows, cols } = computeLinesForPlacement(row, col, matrix);
-                if (rows.length || cols.length) {
-                    highlightPreviewLines(rows, cols);
-                }
+                if (rows.length || cols.length) highlightPreviewLines(rows, cols);
             } else {
                 this.dragState.target = null;
             }
@@ -521,11 +523,9 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const { source, mirror, matrix, color, target } = this.dragState;
             mirror.remove();
-
-            // Clear ghost & preview
-            document.querySelectorAll('.ghost').forEach(c => {
-                c.classList.remove('ghost');
-                c.style.removeProperty('--ghost-color');
+            document.querySelectorAll('.ghost').forEach(c => { 
+                c.classList.remove('ghost'); 
+                c.style.removeProperty('--ghost-color'); 
             });
             clearPreviewLines();
 
@@ -544,13 +544,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 });
                 
+                state.turnCounter++;
+                
                 const multiplier = Math.max(1, state.comboStreak);
                 ui.updateScore(state.score + (10 * multiplier));
                 ui.showFeedback(multiplier > 1 ? `+${10 * multiplier}` : "+10", "anim-score");
                 
                 grid.checkLines();
 
-                // Reset streak if this move didn't clear any line
+                // Boss Logic
+                if (state.mode === 'boss' && state.boss) {
+                   const bossData = BOSS_DATA[state.boss.wave - 1];
+                   state.boss.turnCounter++;
+                   
+                   // Boss only attacks if didn't clear a line AND every X turns
+                   if (!state.didClearThisTurn && state.boss.turnCounter >= bossData.atkSpeed) {
+                       game.bossAttack();
+                       state.boss.turnCounter = 0;
+                   }
+                }
+
                 if (!state.didClearThisTurn) {
                     state.comboStreak = 0;
                     ui.updateComboUI();
@@ -573,7 +586,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ===== GAME CONTROL =====
     const game = {
-        start() {
+        start(mode) {
+            state.mode = mode;
             ui.toggleScreen(dom.gameScreen, dom.mainMenu);
             if (audio.ctx.state === 'suspended') audio.ctx.resume();
             this.reset();
@@ -584,6 +598,23 @@ document.addEventListener('DOMContentLoaded', () => {
             shapes.spawn();
             state.score = 0;
             state.comboStreak = 0;
+            state.turnCounter = 0;
+            
+            if (state.mode === 'boss') {
+                dom.bossUI.style.display = 'block';
+                state.boss = { 
+                    hp: BOSS_DATA[0].hp, 
+                    maxHp: BOSS_DATA[0].hp, 
+                    wave: 1, 
+                    turnCounter: 0 
+                };
+                dom.bossName.textContent = BOSS_DATA[0].name;
+                ui.updateBossUI();
+            } else {
+                dom.bossUI.style.display = 'none';
+                state.boss = null;
+            }
+
             ui.updateComboUI();
             ui.updateScore(0);
             dom.modal.classList.add('hidden');
@@ -596,16 +627,38 @@ document.addEventListener('DOMContentLoaded', () => {
             dom.menuHighScore.textContent = state.highScore;
         },
 
+        bossAttack() {
+            audio.play('boss');
+            ui.triggerShake();
+            ui.showFeedback("BOSS ATTACK!", "anim-damage");
+            
+            // Add 2 random junk blocks
+            let count = 2;
+            for(let i = 0; i < count; i++) {
+                let r = Math.floor(Math.random() * GRID_SIZE);
+                let c = Math.floor(Math.random() * GRID_SIZE);
+                
+                let attempts = 0;
+                while(state.grid[r][c] !== null && attempts < 50) {
+                    r = Math.floor(Math.random() * GRID_SIZE);
+                    c = Math.floor(Math.random() * GRID_SIZE);
+                    attempts++;
+                }
+                
+                if (state.grid[r][c] === null) {
+                    state.grid[r][c] = 'junk';
+                    const cell = grid.getCell(r, c);
+                    cell.style.backgroundColor = 'var(--text-color)';
+                    cell.classList.add('filled', 'boss-junk');
+                }
+            }
+        },
+
         checkGameOver() {
             const shapesLeft = Array.from(dom.blockContainer.children);
             const hasPossibleMove = shapesLeft.some(shapeEl => {
                 const matrix = JSON.parse(shapeEl.dataset.matrix);
-                for (let r = 0; r < GRID_SIZE; r++) {
-                    for (let c = 0; c < GRID_SIZE; c++) {
-                        if (grid.canPlace(r, c, matrix)) return true;
-                    }
-                }
-                return false;
+                return canShapeFitAnywhere(matrix);
             });
 
             if (!hasPossibleMove) {
@@ -628,7 +681,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ===== EVENT LISTENERS =====
-    dom.startBtn.addEventListener('click', () => game.start());
+    dom.startBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const mode = btn.id.replace('mode-', '');
+            game.start(mode);
+        });
+    });
+    
     dom.backToMenuBtn.addEventListener('click', () => game.showMenu());
     dom.exitToMenuBtn.addEventListener('click', () => game.showMenu());
     dom.restartBtn.addEventListener('click', () => game.reset());
@@ -641,7 +700,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Global pointer events for dragging
     window.addEventListener('pointermove', (e) => shapes.onDragMove(e));
     window.addEventListener('pointerup', (e) => shapes.onDragEnd(e));
 

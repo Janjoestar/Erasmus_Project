@@ -17,6 +17,7 @@
     --c4: #0984e3; 
     --c5: #6c5ce7; 
     --glow-color: #fdcb6e; 
+    --danger: #d63031;
 }
 
 [data-theme="dark"] { 
@@ -31,7 +32,8 @@
     --c3: #a6e3a1; 
     --c4: #89b4fa; 
     --c5: #cba6f7; 
-    --glow-color: #f9e2af; 
+    --glow-color: #f9e2af;
+    --danger: #f38ba8;
 }
 
 [data-theme="forest"] { 
@@ -47,6 +49,7 @@
     --c4: #606c38; 
     --c5: #fefae0; 
     --glow-color: #dda15e; 
+    --danger: #bc6c25;
 }
 
 /* Base Styles */
@@ -98,8 +101,8 @@ body {
     text-align: center; 
     display: flex; 
     flex-direction: column; 
-    gap: 30px; 
-    width: 80%; 
+    gap: 20px; 
+    width: 85%; 
     max-width: 400px; 
 }
 
@@ -109,6 +112,7 @@ body {
     line-height: 0.9; 
     letter-spacing: -2px; 
     color: var(--accent-color); 
+    margin-bottom: 10px; 
 }
 
 .menu-stats { 
@@ -128,6 +132,42 @@ body {
 .menu-stats #menu-high-score { 
     font-size: 2rem; 
     font-weight: 900; 
+}
+
+/* Mode Select */
+.mode-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.mode-btn {
+    background: var(--grid-bg);
+    border: 2px solid transparent;
+    padding: 15px;
+    border-radius: 15px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+}
+
+.mode-btn:hover {
+    border-color: var(--accent-color);
+    transform: translateY(-2px);
+}
+
+.mode-btn h3 { 
+    color: var(--text-color); 
+    font-size: 1.1rem; 
+    margin-bottom: 4px; 
+}
+
+.mode-btn p { 
+    color: var(--text-color); 
+    opacity: 0.6; 
+    font-size: 0.8rem; 
+    font-weight: 600; 
 }
 
 /* Header Controls */
@@ -168,6 +208,37 @@ body {
     border-radius: 15px; 
     font-size: 0.75rem; 
     font-weight: 700; 
+    cursor: pointer; 
+}
+
+/* Boss HP Bar */
+.boss-container {
+    width: 100%;
+    margin-bottom: 8px;
+    display: none;
+}
+
+.boss-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+
+.hp-bar-bg {
+    width: 100%;
+    height: 12px;
+    background: var(--cell-bg);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.hp-bar-fill {
+    height: 100%;
+    background: var(--danger);
+    width: 100%;
+    transition: width 0.3s;
 }
 
 /* Score Display */
@@ -269,7 +340,6 @@ body {
     box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15); 
 }
 
-/* Ghost cells for potential placement */
 .cell.ghost {
     background-color: var(--ghost-color);
     opacity: 0.5;
@@ -277,13 +347,17 @@ body {
     box-shadow: inset 0 0 8px rgba(255,255,255,0.3);
 }
 
-/* Highlight full line that will pop */
 .cell.will-clear {
     box-shadow: 0 0 8px var(--glow-color), inset 0 0 4px var(--glow-color);
     opacity: 0.9;
 }
 
-/* Grid combo */
+.cell.boss-junk {
+    background-color: var(--text-color) !important;
+    opacity: 0.4;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+}
+
 .grid.combo-active { 
     box-shadow: 0 0 20px var(--glow-color), inset 0 0 10px var(--glow-color); 
     border: 2px solid var(--glow-color); 
@@ -359,6 +433,12 @@ body {
     animation: popScale 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; 
 }
 
+.anim-damage { 
+    font-size: 2rem; 
+    color: var(--danger); 
+    animation: popScale 0.6s ease-out forwards; 
+}
+
 @keyframes fadeUp { 
     0% { opacity: 0; } 
     20% { opacity: 1; } 
@@ -428,7 +508,6 @@ body {
     box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2);
 }
 
-/* Greyed-out shapes when no move possible */
 .shape.disabled {
     opacity: 0.3;
     transform: scale(0.95);

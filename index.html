@@ -8,6 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Main Menu -->
     <div id="main-menu" class="screen">
         <div class="menu-header-controls">
             <button class="mute-btn icon-btn">🔊</button>
@@ -18,11 +19,23 @@
                 <span class="label">BEST SCORE</span>
                 <span id="menu-high-score">0</span>
             </div>
-            <button id="start-game-btn" class="primary-btn">PLAY NOW</button>
-            <button id="menu-theme-btn" class="secondary-btn">CHANGE THEME</button>
+            
+            <div class="mode-grid">
+                <button id="mode-classic" class="mode-btn">
+                    <h3>CLASSIC</h3>
+                    <p>Relaxed infinite puzzle.</p>
+                </button>
+                <button id="mode-boss" class="mode-btn">
+                    <h3>BOSS RUSH</h3>
+                    <p>Clear lines to defeat bosses!</p>
+                </button>
+            </div>
+
+            <button id="menu-theme-btn" class="secondary-btn" style="margin-top: 10px;">CHANGE THEME</button>
         </div>
     </div>
 
+    <!-- Game Screen -->
     <div id="game-screen" class="screen hidden">
         <div class="game-container">
             <header>
@@ -34,6 +47,17 @@
                     <button id="game-theme-btn" class="theme-toggle">THEME</button>
                 </div>
                 
+                <!-- Boss UI (Hidden by default) -->
+                <div id="boss-ui" class="boss-container">
+                    <div class="boss-header">
+                        <span id="boss-name">BLOCK GOLEM</span>
+                        <span id="boss-hp-text">100%</span>
+                    </div>
+                    <div class="hp-bar-bg">
+                        <div id="boss-hp-bar" class="hp-bar-fill"></div>
+                    </div>
+                </div>
+
                 <div class="score-info-bar">
                     <div id="combo-box" class="hidden">STREAM x<span id="combo-multiplier">1</span></div>
                     <div class="score-board">
@@ -59,6 +83,7 @@
         </div>
     </div>
 
+    <!-- Game Over Modal -->
     <div id="game-over-modal" class="modal hidden">
         <div class="modal-content">
             <h2 id="go-title">NO MOVES LEFT!</h2>
